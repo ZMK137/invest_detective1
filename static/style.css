@@ -1,0 +1,168 @@
+/* =========================================
+   1. ZMIENNE I KONFIGURACJA KOLORÓW
+   ========================================= */
+:root {
+    /* Tła */
+    --bg-app:        #050505;  /* Prawie czarne tło całej strony */
+    --bg-panel:      #161b22;  /* Tło kart/paneli (wyraźnie jaśniejsze) */
+    --bg-input:      #0d1117;  /* Tło pola wyszukiwania */
+    
+    /* Ramki */
+    --border-color:  #30363d;  /* Kolor obramowania kart */
+    
+    /* Tekst */
+    --text-primary:  #f0f6fc;  /* Główny biały tekst */
+    --text-muted:    #8b949e;  /* Szary tekst opisowy */
+    
+    /* Kolory Wskaźników (Akcenty) */
+    --color-accent:  #58a6ff;  /* Niebieski */
+    --color-success: #3fb950;  /* Zielony */
+    --color-warning: #d29922;  /* Żółty/Pomarańczowy */
+    --color-danger:  #f85149;  /* Czerwony */
+}
+
+/* =========================================
+   2. OGÓLNE USTAWIENIA STRONY
+   ========================================= */
+body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding-bottom: 50px;
+}
+
+h1, h2, h3 { font-weight: 700; letter-spacing: -0.5px; }
+
+/* =========================================
+   3. KOMPONENTY (KARTY I PANELE)
+   ========================================= */
+
+/* Główny kontener karty - to oddziela treść od tła */
+.dashboard-card {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-color); /* Kluczowe dla kontrastu! */
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); /* Cień dla głębi */
+}
+
+/* =========================================
+   4. FORMULARZ WYSZUKIWANIA
+   ========================================= */
+.search-input {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 15px 20px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    width: 100%;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--color-accent); /* Podświetlenie przy pisaniu */
+}
+
+.btn-analyze {
+    background-color: var(--color-accent);
+    color: black;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    padding: 0 30px;
+    transition: transform 0.1s;
+}
+
+.btn-analyze:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+/* =========================================
+   5. METRYKI (LICZBY)
+   ========================================= */
+.metric-container {
+    text-align: center;
+    padding: 10px;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.metric-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    font-family: 'Roboto Mono', monospace; /* Czcionka techniczna */
+}
+
+/* Kolorowanie wartości */
+.val-positive { color: var(--color-success); }
+.val-negative { color: var(--color-danger); }
+.val-neutral  { color: var(--color-accent); }
+.val-warning  { color: var(--color-warning); }
+
+/* =========================================
+   6. TRUST SCORE (WIELKI LICZNIK)
+   ========================================= */
+.trust-score-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    border-left: 1px solid var(--border-color); /* Oddzielenie pionowe */
+}
+
+.score-big {
+    font-size: 5rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.risk-box {
+    background-color: rgba(248, 81, 73, 0.1); /* Czerwona poświata */
+    border: 1px solid var(--color-danger);
+    color: #ffafab;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 20px;
+    width: 100%;
+    text-align: left;
+}
+
+/* =========================================
+   7. ZAKŁADKI (TABS)
+   ========================================= */
+.nav-tabs { border-bottom: 1px solid var(--border-color); }
+
+.nav-link {
+    color: var(--text-muted) !important;
+    font-weight: 600;
+    border: none !important;
+    padding: 15px 25px;
+}
+
+.nav-link.active {
+    color: var(--color-accent) !important;
+    background-color: transparent !important;
+    border-bottom: 3px solid var(--color-accent) !important;
+}
+
+.nav-link:hover { color: white !important; }
+
+/* Tabela */
+.table { color: var(--text-primary); }
+.table thead th {
+    background-color: var(--bg-input);
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+}
+.table td { border-bottom: 1px solid var(--border-color); }
