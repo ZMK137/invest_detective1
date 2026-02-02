@@ -347,30 +347,6 @@ def analyze(ticker):
 # 9. ROUTING 
 # ======================================================
 
-@app.route('/search_suggestions')
-def search_suggestions():
-    query = request.args.get('q', '').upper()
-    if len(query) < 2:
-        return jsonify(suggestions=[])
-    
-    try:
-        # Przykładowa lista lub szybkie wyszukiwanie przez yfinance
-        import yfinance as yf
-        # Uwaga: yfinance nie ma dedykowanego search, lepiej użyć stałej listy spółek WIG 
-        # lub API zewnętrznego dla pełnej dynamiki. 
-        # Poniżej uproszczona logika dla Twojej listy badawczej:
-        all_tickers = [
-            {'symbol': 'XTB.WA', 'name': 'XTB Spółka Akcyjna'},
-            {'symbol': 'CDR.WA', 'name': 'CD Projekt'},
-            {'symbol': 'PKO.WA', 'name': 'PKO BP'},
-            {'symbol': 'AAPL', 'name': 'Apple Inc.'}
-        ]
-        suggestions = [s for s in all_tickers if query in s['symbol'] or query in s['name'].upper()][:5]
-        return jsonify(suggestions=suggestions)
-    except Exception as e:
-        return jsonify(suggestions=[], error=str(e))
-
-
 @app.route('/register', methods=['POST'])
 def register():
     email = request.form.get('email')
@@ -413,27 +389,32 @@ def logout():
     logout_user()
     return redirect(url_for('home'))
 
-@app.route('/', methods=['GET', 'POST'])
+# Ścieżka dla strony głównej (Landing Page)
+@app.route('/')
 def home():
-    result = None
-    # Pobieramy info o sesji (Twoja funkcja pomocnicza)
-    limit_reached, checks_used = get_session_info()
+    # Jeśli użytkownik wpisał ticker, idź do analizy
+    if request.method == 'POST' or request.args.get('ticker'):
+        return analyze() 
+    # W przeciwnym razie pokaż Main Page
+    return render_template('mainpage.html')
+
+# Ścieżka dla sugestii wyszukiwarki
+@app.route('/search_suggestions')
+def search_suggestions():
+    query = request.args.get('q', '').upper()
+    if len(query) < 2:
+        return jsonify(suggestions=[])
     
-    # Dodajemy komunikat powitalny jeśli user jest zalogowany
-    msg = None
-    if request.args.get('msg'): # Obsługa komunikatów z redirect
-        msg = request.args.get('msg')
-
-    if request.method == 'POST':
-        t = request.form.get('ticker')
-        if t: 
-            result = analyze(t)
-            if result:
-                session['checks_today'] += 1
-                session.modified = True
-                limit_reached, checks_used = get_session_info()
-
-    return render_template('index.html', result=result, limit_reached=limit_reached, checks_used=checks_used, msg=msg)
-
+    # Lista testowa (później możesz ją rozbudować)
+    all_tickers = [
+        {'symbol': 'XTB.WA', 'name': 'XTB Spółka Akcyjna'},
+        {'symbol': 'CDR.WA', 'name': 'CD Projekt'},
+        {'symbol': 'PKO.WA', 'name': 'PKO BP'},
+        {'symbol': 'AAPL', 'name': 'Apple Inc.'},
+        {'symbol': 'TSLA', 'name': 'Tesla Inc.'}
+    ]
+    
+    filtered = [s for s in all_tickers if query in s['symbol'] or query in s['name'].upper()]
+    return jsonify(suggestions=filtered[:5])
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
