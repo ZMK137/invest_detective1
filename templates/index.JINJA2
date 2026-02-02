@@ -257,15 +257,15 @@
                             <tbody>
                                 <tr>
                                     <td class="ps-3 fw-bold">Current Ratio</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
                                 </tr>
                                 <tr>
                                     <td class="ps-3 fw-bold">Quick Ratio</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
                                 </tr>
                             </tbody>
                         </table>
