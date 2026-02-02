@@ -416,6 +416,8 @@ def analyze(ticker):
         for k in ['z_score', 'prof', 'liq', 'benford']:
             if k not in charts: charts[k] = ""
 
+       # ... (wcześniejszy kod funkcji analyze) ...
+
         return {
             'ticker': t,
             'current_price': round(current_price, 2),
@@ -423,7 +425,11 @@ def analyze(ticker):
             'latest': latest_dict,
             'history': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
-            # 'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
+            
+            # --- TU BYŁ BŁĄD. TA LINIA MUSI ISTNIEĆ, NAWET JEŚLI JEST PUSTA ---
+            'history_quarterly': [], 
+            # -------------------------------------------------------------------
+
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,
