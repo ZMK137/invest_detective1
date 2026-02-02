@@ -353,8 +353,9 @@ def analyze(ticker):
         annual_data = {'fin': stock.financials.T, 'bal': stock.balance_sheet.T, 'cf': stock.cashflow.T}
         quarterly_data = {'fin': stock.quarterly_financials.T, 'bal': stock.quarterly_balance_sheet.T, 'cf': stock.quarterly_cashflow.T}
 
-        if annual_data['fin'].empty:
-            return None
+        # Poluzowanie warunku: jeśli brak danych finansowych, nie przerywamy, aby zwrócić stock.info
+        # if annual_data['fin'].empty:
+        #     return None
         
         # Przetwarzanie i obliczenia
         df_annual_raw = process_financial_data(annual_data, is_quarterly=False)
@@ -379,26 +380,32 @@ def analyze(ticker):
         dcf_data = calculate_dcf(stock, stock.cashflow, df_annual)
         
         # Predykcja ML (używa najnowszych dostępnych danych)
-        feats = [[latest['Current_Ratio'], latest['Debt_Ratio'], latest['ROA']/100, latest['ROS']/100]]
-        try:
-            ml_prob = ml_model.predict_proba(feats)[0][1] * 100
-        except:
-            ml_prob = 50.0
+        ml_prob = 50.0
+        if not latest.empty:
+            feats = [[latest.get('Current_Ratio', 0), latest.get('Debt_Ratio', 0), latest.get('ROA', 0)/100, latest.get('ROS', 0)/100]]
+            try:
+                ml_prob = ml_model.predict_proba(feats)[0][1] * 100
+            except:
+                pass
+
+        # Dodanie kolumn indeksowych (niezbędne dla szablonu i wykresów)
+        if not df_annual.empty: df_annual['Rok'] = df_annual.index
+        if not df_quarterly.empty: df_quarterly['index'] = df_quarterly.index
 
         # Wykresy (bazują na danych rocznych)
-        charts = create_static_charts(df_annual)
+        charts = create_static_charts(df_annual) if not df_annual.empty else {}
 
         return {
             'ticker': t,
             'current_price': round(current_price, 2),
             'mcap': mcap,
-            'latest': latest.to_dict(),
+            'latest': latest.to_dict() if not latest.empty else {},
             'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,
-            'f_score': latest['F_Score'],
+            'f_score': latest.get('F_Score', 0) if not latest.empty else 0,
             'raw_info': stock.info
         }
 
