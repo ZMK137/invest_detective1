@@ -11,3 +11,4 @@ flask-sqlalchemy
 flask-login
 livereload
 Flask-Caching
+jsonify

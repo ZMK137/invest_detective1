@@ -15,6 +15,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+
+app = Flask(__name__)
+app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE' 
+
 import traceback
 
 # Dodaj to do app.py
@@ -26,8 +31,6 @@ def internal_error(error):
 def not_found(error):
     return "Nie znaleziono strony (404). Sprawdź URL.", 404
 
-app = Flask(__name__)
-app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE' 
 
 # ======================================================
 # 1. KONFIGURACJA CACHE (PAMIĘĆ PODRĘCZNA)
@@ -485,9 +488,9 @@ def home():
         if request.method == 'POST':
             ticker = request.form.get('ticker', '').upper()
             if not ticker:
-                # Upewnij się, że masz ten szablon!
                 return render_template('mainpage.html')
 
+            # POPRAWKA: Używamy analyze zamiast analyze_ticker
             analysis_result = analyze(ticker)
             
             # Logika sesji
@@ -506,14 +509,11 @@ def home():
                                        checks_used=checks_used, 
                                        limit_reached=limit_reached)
                 
-        # Metoda GET
         return render_template('mainpage.html')
 
     except Exception as e:
-        # To pokaże błąd w konsoli serwera zamiast ukrywać go
         print(f"KRYTYCZNY BŁĄD FLASK: {e}")
-        # Możesz zwrócić prosty string, żeby zobaczyć błąd w przeglądarce bez debug mode
-        return f"Wystąpił błąd serwera: {str(e)}", 500
+        return f"Wystąpił błąd serwera: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
 # Ścieżka dla sugestii wyszukiwarki

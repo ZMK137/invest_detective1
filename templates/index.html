@@ -246,7 +246,9 @@
                             <thead class="text-secondary">
                                 <tr>
                                     <th class="ps-3">Wskaźnik</th>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    {% if result.history_quarterly|slice(0, 4) %}
+                                        {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    {% endif %}
                                     <th class="bg-secondary text-white text-center">Roczne -></th>
                                     {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
                                 </tr>
