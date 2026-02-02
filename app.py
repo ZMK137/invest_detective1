@@ -15,6 +15,16 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
+import traceback
+
+# Dodaj to do app.py
+@app.errorhandler(500)
+def internal_error(error):
+    return f"<pre>KRYTYCZNY BŁĄD SERWERA:\n{traceback.format_exc()}</pre>", 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return "Nie znaleziono strony (404). Sprawdź URL.", 404
 
 app = Flask(__name__)
 app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE' 
@@ -471,29 +481,39 @@ def logout():
 # Ścieżka dla strony głównej (Landing Page)
 @app.route('/', methods=['GET', 'POST']) 
 def home():
-    if request.method == 'POST':
-        ticker = request.form.get('ticker', '').upper()
-        if not ticker:
-            return render_template('mainpage.html')
+    try:
+        if request.method == 'POST':
+            ticker = request.form.get('ticker', '').upper()
+            if not ticker:
+                # Upewnij się, że masz ten szablon!
+                return render_template('mainpage.html')
 
-        analysis_result = analyze(ticker)
-        
-        limit_reached, checks_used = get_session_info()
-        session['checks_today'] = checks_used + 1
-
-        if analysis_result:
-            return render_template('index.html', 
-                                   result=analysis_result, 
-                                   checks_used=session['checks_today'], 
-                                   limit_reached=limit_reached)
-        else:
-            return render_template('index.html', 
-                                   error=f"Nie znaleziono danych dla tickera '{ticker}'. Sprawdź symbol i spróbuj ponownie.", 
-                                   result=None,
-                                   checks_used=checks_used, 
-                                   limit_reached=limit_reached)
+            analysis_result = analyze(ticker)
             
-    return render_template('mainpage.html')
+            # Logika sesji
+            limit_reached, checks_used = get_session_info()
+            session['checks_today'] = checks_used + 1
+
+            if analysis_result:
+                return render_template('index.html', 
+                                       result=analysis_result, 
+                                       checks_used=session['checks_today'], 
+                                       limit_reached=limit_reached)
+            else:
+                return render_template('index.html', 
+                                       error=f"Nie znaleziono danych dla '{ticker}'.", 
+                                       result=None,
+                                       checks_used=checks_used, 
+                                       limit_reached=limit_reached)
+                
+        # Metoda GET
+        return render_template('mainpage.html')
+
+    except Exception as e:
+        # To pokaże błąd w konsoli serwera zamiast ukrywać go
+        print(f"KRYTYCZNY BŁĄD FLASK: {e}")
+        # Możesz zwrócić prosty string, żeby zobaczyć błąd w przeglądarce bez debug mode
+        return f"Wystąpił błąd serwera: {str(e)}", 500
 
 
 # Ścieżka dla sugestii wyszukiwarki
@@ -514,5 +534,9 @@ def search_suggestions():
     
     filtered = [s for s in all_tickers if query in s['symbol'] or query in s['name'].upper()]
     return jsonify(suggestions=filtered[:5])
+
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # debug=True pokaże dokładny błąd w przeglądarce zamiast "Internal Server Error"
+    app.run(host='0.0.0.0', port=5000, debug=True)
