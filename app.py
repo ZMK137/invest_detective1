@@ -390,12 +390,15 @@ def logout():
     return redirect(url_for('home'))
 
 # Ścieżka dla strony głównej (Landing Page)
-@app.route('/')
+@app.route('/', methods=['GET', 'POST']) 
 def home():
-    # Jeśli użytkownik wpisał ticker, idź do analizy
-    if request.method == 'POST' or request.args.get('ticker'):
-        return analyze() 
-    # W przeciwnym razie pokaż Main Page
+    if request.method == 'POST':
+        ticker = request.form.get('ticker', '').upper()
+        if ticker:
+            # Tutaj wywołujemy Twoją funkcję analityczną
+            return analyze_ticker(ticker) 
+            
+    # Jeśli to zwykłe wejście na stronę (GET)
     return render_template('mainpage.html')
 
 # Ścieżka dla sugestii wyszukiwarki
