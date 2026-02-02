@@ -398,7 +398,8 @@ def analyze(ticker):
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,
-            'f_score': latest['F_Score']
+            'f_score': latest['F_Score'],
+            'raw_info': stock.info
         }
 
     except Exception as e:
