@@ -279,17 +279,17 @@
                             <thead class="text-secondary">
                                 <tr>
                                     <th class="ps-3">Wskaźnik</th>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<th class="text-center">{{ row.index }}</th>{% endfor %}
                                     <th class="bg-secondary text-white text-center">Roczne -></th>
-                                    {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td class="ps-3 fw-bold">Debt Ratio</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
                                 </tr>
                             </tbody>
                         </table>
@@ -303,29 +303,29 @@
                             <thead class="text-secondary">
                                 <tr>
                                     <th class="ps-3">Wskaźnik (%)</th>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<th class="text-center">{{ row.index }}</th>{% endfor %}
                                     <th class="bg-secondary text-white text-center">Roczne -></th>
-                                    {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td class="ps-3 fw-bold">ROE</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
                                 </tr>
                                 <tr>
                                     <td class="ps-3 fw-bold">ROA</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
                                 </tr>
                                 <tr>
                                     <td class="ps-3 fw-bold">ROS</td>
-                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
+                                    {% for row in result.history_quarterly[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
                                     <td class="bg-secondary"></td>
-                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
+                                    {% for row in result.history_annual[:4] %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
                                 </tr>
                             </tbody>
                         </table>
