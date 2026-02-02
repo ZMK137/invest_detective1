@@ -2,52 +2,21 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invest Detective Terminal</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
     <style>
-        :root {
-            --bg-color: #131722;
-            --card-color: #1e222d;
-            --text-main: #d1d4dc;
-            --text-dim: #787b86;
-            --accent-blue: #2962ff;
-            --accent-green: #089981;
-            --accent-red: #f23645;
-            --border-color: #2a2e39;
-        }
-
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        
-        .sidebar { height: 100%; width: 0; position: fixed; z-index: 1000; top: 0; left: 0; background-color: var(--card-color); border-right: 1px solid var(--border-color); overflow-x: hidden; transition: 0.3s; padding-top: 60px; }
-        .sidebar a { padding: 12px 20px; text-decoration: none; font-size: 14px; color: var(--text-dim); display: block; transition: 0.2s; font-weight: 500; cursor: pointer; }
-        .sidebar a:hover, .sidebar a.active { color: var(--accent-blue); background: rgba(41, 98, 255, 0.05); border-right: 2px solid var(--accent-blue); }
-        .sidebar .closebtn { position: absolute; top: 10px; right: 20px; font-size: 24px; color: var(--text-dim); }
-        .open-btn { font-size: 20px; cursor: pointer; background: var(--card-color); color: var(--text-main); padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; position: fixed; top: 15px; left: 15px; z-index: 999; }
+        /* Minimalne poprawki dla struktury dashboardu */
         #main-content { transition: margin-left .3s; padding: 20px; padding-top: 80px; }
-
-        .dashboard-card { background: var(--card-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 20px; margin-bottom: 20px; }
-        .metric-item { padding: 10px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-        .metric-name { font-size: 0.85rem; color: var(--text-dim); font-weight: 500; display: flex; align-items: center; gap: 6px; }
-        .metric-val { font-family: 'Roboto Mono', monospace; font-weight: 700; font-size: 1rem; color: var(--text-main); }
-        .metric-label-big { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
-        .metric-val-big { font-family: 'Roboto Mono', monospace; font-weight: 700; font-size: 1.5rem; color: var(--text-main); }
-        .val-good { color: var(--accent-green); } .val-bad { color: var(--accent-red); } .text-blue { color: var(--accent-blue); }
-        .info-icon { font-size: 0.9rem; color: var(--text-dim); cursor: help; transition: 0.2s; }
-        .info-icon:hover { color: var(--accent-blue); }
         .view-section { display: none; }
-        .chart-img { width: 100%; border-radius: 2px; border: 1px solid var(--border-color); }
-        .tooltip-inner { background-color: #2a2e39 !important; border: 1px solid #434651; color: #d1d4dc; font-family: 'Inter', sans-serif; text-align: left; padding: 10px; max-width: 280px; }
-        .tooltip-arrow::before { border-top-color: #2a2e39 !important; }
-        .form-control-dark { background: #2a2e39; border: 1px solid #363a45; color: white; border-radius: 4px; font-family: 'Roboto Mono'; }
-        .form-control-dark:focus { background: #2a2e39; color: white; border-color: var(--accent-blue); box-shadow: none; }
-        .btn-primary { background-color: var(--accent-blue); border: none; font-weight: 600; padding: 8px 20px; }
-        .pricing-card { text-align: center; border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; transition: transform 0.2s; }
-        .pricing-card:hover { transform: translateY(-5px); border-color: var(--accent-blue); }
-        .price-tag { font-size: 2.5rem; font-weight: 700; font-family: 'Roboto Mono'; margin: 20px 0; }
-        .main-logo { font-family: 'Roboto Mono', monospace; font-weight: 700; font-size: 1.5rem; letter-spacing: -1px; margin-right: 20px; }
-        .logo-blue { color: var(--accent-blue); }
+        .sidebar { transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -104,9 +73,12 @@
                         <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                         <script type="text/javascript">
                         new TradingView.widget({
-                            "autosize": true, "symbol": "GPW:{{ result.ticker }}", "interval": "D", "timezone": "Europe/Warsaw",
-                            "theme": "dark", "style": "1", "locale": "pl", "toolbar_bg": "#f1f3f6", "enable_publishing": false,
-                            "allow_symbol_change": true, "container_id": "tradingview_chart"
+                            "autosize": true,
+                            "symbol": "{% if '.' in result.ticker %}GPW:{{ result.ticker.split('.')[0] }}{% else %}NASDAQ:{{ result.ticker }}{% endif %}",
+                            "interval": "D",
+                            "timezone": "Europe/Warsaw",
+                            "theme": "dark",
+                            "container_id": "tradingview_chart"
                         });
                         </script>
                     </div>
@@ -196,15 +168,15 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="dashboard-card h-100">
-                        <h6 class="text-blue text-uppercase fw-bold mb-3">Płynność</h6>
+                    <div class="dashboard-card h-100 border-neon-pink">
+                        <h6 class="text-pink text-uppercase fw-bold mb-3">Forensic Analytics</h6>
                         <div class="metric-item">
-                            <span class="metric-name">Current Ratio <i class="bi bi-info-circle info-icon" data-bs-toggle="tooltip" title="Płynność bieżąca. Norma 1.2-2.0"></i></span>
-                            <span class="metric-val {{ 'val-good' if result.latest.Current_Ratio > 1.2 else 'val-bad' }}">{{ "{:.2f}".format(result.latest.Current_Ratio) }}</span>
+                            <span class="metric-name">F-Score <i class="bi bi-info-circle info-icon" data-bs-toggle="tooltip" title="Piotroski Score (0-9). >7 to wysoka wiarygodność."></i></span>
+                            <span class="metric-val {% if result.f_score > 6 %}val-good{% else %}val-bad{% endif %}">{{ result.f_score }}/9</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-name">Dług/Aktywa <i class="bi bi-info-circle info-icon" data-bs-toggle="tooltip" title="Bezpiecznie < 50%"></i></span>
-                            <span class="metric-val {{ 'val-good' if result.latest.Debt_Ratio < 0.5 else 'val-bad' }}">{{ "{:.0f}".format(result.latest.Debt_Ratio*100) }}%</span>
+                            <span class="metric-name">Z-Score <i class="bi bi-info-circle info-icon" data-bs-toggle="tooltip" title="Model Altmana. <1.81 ryzyko upadłości."></i></span>
+                            <span class="metric-val">{{ "{:.2f}".format(result.latest.Z_Score_Val) }}</span>
                         </div>
                     </div>
                 </div>

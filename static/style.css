@@ -1,168 +1,215 @@
 /* =========================================
-   1. ZMIENNE I KONFIGURACJA KOLORÓW
+   1. ZMIENNE I RDZEŃ SYSTEMU
    ========================================= */
 :root {
-    /* Tła */
-    --bg-app:        #050505;  /* Prawie czarne tło całej strony */
-    --bg-panel:      #161b22;  /* Tło kart/paneli (wyraźnie jaśniejsze) */
-    --bg-input:      #0d1117;  /* Tło pola wyszukiwania */
+    /* Kolory tła */
+    --bg-app:        #0a0a12;  /* Ultra głęboka czerń (tło strony) */
+    --bg-panel:      #12121f;  /* Tło kart i paneli */
+    --bg-input:      #0d0d17;  /* Tło pól formularzy */
     
-    /* Ramki */
-    --border-color:  #30363d;  /* Kolor obramowania kart */
+    /* Akcenty neonowe */
+    --accent-blue:   #00f2ff;  /* Neonowy błękit (główny) */
+    --accent-pink:   #ff007f;  /* Neonowy róż (akcenty/ryzyko) */
+    --accent-green:  #00ff9d;  /* Neonowa zieleń (sukces) */
+    --accent-red:    #ff0055;  /* Neonowa czerwień (zagrożenie) */
     
-    /* Tekst */
-    --text-primary:  #f0f6fc;  /* Główny biały tekst */
-    --text-muted:    #8b949e;  /* Szary tekst opisowy */
+    /* Tekst i ramki */
+    --text-main:     #e0e0e0;  /* Główny tekst */
+    --text-dim:      #787b86;  /* Tekst przygaszony */
+    --border-color:  #1f1f33;  /* Kolor obramowania */
     
-    /* Kolory Wskaźników (Akcenty) */
-    --color-accent:  #58a6ff;  /* Niebieski */
-    --color-success: #3fb950;  /* Zielony */
-    --color-warning: #d29922;  /* Żółty/Pomarańczowy */
-    --color-danger:  #f85149;  /* Czerwony */
+    /* Efekty */
+    --glitch-shadow: 2px 2px var(--accent-pink), -2px -2px var(--accent-blue);
 }
 
 /* =========================================
-   2. OGÓLNE USTAWIENIA STRONY
+   2. USTAWIENIA OGÓLNE
    ========================================= */
 body {
-    background-color: var(--bg-app);
-    color: var(--text-primary);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at center, #1a1a2e 0%, var(--bg-app) 100%);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
     min-height: 100vh;
-    padding-bottom: 50px;
+    margin: 0;
+    overflow-x: hidden;
 }
 
-h1, h2, h3 { font-weight: 700; letter-spacing: -0.5px; }
+/* Efekt siatki w tle */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: 
+        linear-gradient(var(--border-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -1;
+    opacity: 0.15;
+}
 
 /* =========================================
-   3. KOMPONENTY (KARTY I PANELE)
+   3. NAWIGACJA (SIDEBAR)
    ========================================= */
-
-/* Główny kontener karty - to oddziela treść od tła */
-.dashboard-card {
+.sidebar {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    z-index: 1000;
+    top: 0; left: 0;
     background-color: var(--bg-panel);
-    border: 1px solid var(--border-color); /* Kluczowe dla kontrastu! */
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5); /* Cień dla głębi */
+    border-right: 1px solid var(--accent-blue);
+    overflow-x: hidden;
+    transition: 0.3s;
+    padding-top: 60px;
+    box-shadow: 5px 0 15px rgba(0,0,0,0.5);
 }
 
-/* =========================================
-   4. FORMULARZ WYSZUKIWANIA
-   ========================================= */
-.search-input {
-    background-color: var(--bg-input);
-    border: 1px solid var(--border-color);
-    color: white;
-    padding: 15px 20px;
-    font-size: 1.1rem;
-    border-radius: 8px;
-    width: 100%;
-    transition: border-color 0.2s;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--color-accent); /* Podświetlenie przy pisaniu */
-}
-
-.btn-analyze {
-    background-color: var(--color-accent);
-    color: black;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
-    padding: 0 30px;
-    transition: transform 0.1s;
-}
-
-.btn-analyze:hover { transform: scale(1.02); filter: brightness(1.1); }
-
-/* =========================================
-   5. METRYKI (LICZBY)
-   ========================================= */
-.metric-container {
-    text-align: center;
-    padding: 10px;
-}
-
-.metric-label {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 8px;
+.sidebar a {
+    padding: 15px 25px;
+    text-decoration: none;
+    font-size: 14px;
+    color: var(--text-dim);
+    display: block;
+    transition: 0.2s;
     font-weight: 600;
+    text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.metric-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    font-family: 'Roboto Mono', monospace; /* Czcionka techniczna */
+.sidebar a:hover, .sidebar a.active {
+    color: var(--accent-blue);
+    background: rgba(0, 242, 255, 0.05);
+    border-right: 3px solid var(--accent-blue);
 }
 
-/* Kolorowanie wartości */
-.val-positive { color: var(--color-success); }
-.val-negative { color: var(--color-danger); }
-.val-neutral  { color: var(--color-accent); }
-.val-warning  { color: var(--color-warning); }
+.open-btn {
+    font-size: 20px;
+    cursor: pointer;
+    background: var(--bg-panel);
+    color: var(--accent-blue);
+    padding: 10px 15px;
+    border: 1px solid var(--accent-blue);
+    border-radius: 4px;
+    position: fixed;
+    top: 15px; left: 15px;
+    z-index: 999;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
 
 /* =========================================
-   6. TRUST SCORE (WIELKI LICZNIK)
+   4. KOMPONENTY (KARTY)
    ========================================= */
-.trust-score-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    border-left: 1px solid var(--border-color); /* Oddzielenie pionowe */
+.dashboard-card {
+    background: rgba(18, 18, 31, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+    transition: border-color 0.3s;
 }
 
+.dashboard-card:hover {
+    border-color: var(--accent-blue);
+}
+
+/* Sekcja Forensic / Ryzyko */
+.border-neon-pink {
+    border: 1px solid var(--accent-pink) !important;
+}
+
+/* =========================================
+   5. METRYKI I WSKAŹNIKI
+   ========================================= */
+.metric-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.metric-label-big {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.metric-val-big {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--text-main);
+    text-shadow: 0 0 5px rgba(255,255,255,0.1);
+}
+
+/* Wielki licznik Trust Score / F-Score */
 .score-big {
     font-size: 5rem;
     font-weight: 900;
-    line-height: 1;
+    color: var(--accent-blue);
+    text-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
 }
 
-.risk-box {
-    background-color: rgba(248, 81, 73, 0.1); /* Czerwona poświata */
-    border: 1px solid var(--color-danger);
-    color: #ffafab;
-    padding: 15px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    margin-top: 20px;
-    width: 100%;
-    text-align: left;
+/* Kolory stanów */
+.val-good { color: var(--accent-green) !important; text-shadow: 0 0 10px var(--accent-green); }
+.val-bad  { color: var(--accent-red) !important; text-shadow: 0 0 10px var(--accent-red); }
+.text-blue { color: var(--accent-blue); }
+
+/* =========================================
+   6. FORMULARZE I PRZYCISKI
+   ========================================= */
+.form-control-dark {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--accent-blue) !important;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', monospace;
+    padding: 12px 20px;
+}
+
+.form-control-dark:focus {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3) !important;
+    outline: none;
+}
+
+.btn-primary {
+    background: transparent !important;
+    border: 1px solid var(--accent-blue) !important;
+    color: var(--accent-blue) !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: 0.3s;
+}
+
+.btn-primary:hover {
+    background: var(--accent-blue) !important;
+    color: #000 !important;
+    box-shadow: 0 0 20px var(--accent-blue);
 }
 
 /* =========================================
-   7. ZAKŁADKI (TABS)
+   7. LOGO I DODATKI
    ========================================= */
-.nav-tabs { border-bottom: 1px solid var(--border-color); }
-
-.nav-link {
-    color: var(--text-muted) !important;
-    font-weight: 600;
-    border: none !important;
-    padding: 15px 25px;
+.main-logo {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 900;
+    font-size: 1.8rem;
+    letter-spacing: -1px;
+    text-shadow: var(--glitch-shadow);
 }
 
-.nav-link.active {
-    color: var(--color-accent) !important;
-    background-color: transparent !important;
-    border-bottom: 3px solid var(--color-accent) !important;
-}
-
-.nav-link:hover { color: white !important; }
+.logo-blue { color: var(--accent-blue); }
 
 /* Tabela */
-.table { color: var(--text-primary); }
+.table { color: var(--text-main); }
 .table thead th {
     background-color: var(--bg-input);
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-color);
+    color: var(--accent-blue);
+    border-bottom: 2px solid var(--accent-blue);
+    text-transform: uppercase;
+    font-size: 0.8rem;
 }
-.table td { border-bottom: 1px solid var(--border-color); }
