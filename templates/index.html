@@ -75,7 +75,7 @@
             <div class="d-flex align-items-center">
                 <div class="main-logo">INVEST<span class="logo-blue">DETECTIVE</span></div>
             </div>
-            <form method="POST" class="d-flex gap-2 flex-grow-1" style="max-width: 400px;">
+           <form action="/" method="POST" class="d-flex gap-2 flex-grow-1" style="max-width: 400px;">
                 <input type="text" name="ticker" class="form-control form-control-dark" placeholder="TICKER (np. CDR)..." required>
                 <button type="submit" class="btn btn-primary">SZUKAJ</button>
             </form>
@@ -281,15 +281,55 @@
         </div>
     </div>
 
-    <div id="view-login" class="view-section container px-4" style="max-width: 400px; margin-top: 50px;">
-        <div class="dashboard-card">
-            <h4 class="text-center text-white mb-4">Zaloguj się</h4>
-            <form>
-                <div class="mb-3"><label class="text-dim small mb-1">EMAIL</label><input type="email" class="form-control form-control-dark" placeholder="user@example.com"></div>
-                <div class="mb-4"><label class="text-dim small mb-1">HASŁO</label><input type="password" class="form-control form-control-dark" placeholder="••••••"></div>
-                <button type="button" class="btn btn-primary w-100">WEJDŹ</button>
-            </form>
+    <div id="view-login" class="view-section container px-4" style="margin-top: 50px;">
+        
+        {% if current_user.is_authenticated %}
+        <div class="dashboard-card text-center" style="max-width: 500px; margin: 0 auto;">
+            <h1 class="text-success mb-3"><i class="bi bi-person-check-fill"></i></h1>
+            <h4 class="text-white">Witaj, {{ current_user.email }}</h4>
+            <p class="text-dim">Twój plan: <span class="badge bg-primary text-uppercase">{{ current_user.plan }}</span></p>
+            <p class="text-dim">Masz nielimitowany dostęp do analiz.</p>
+            <a href="/logout" class="btn btn-outline-danger mt-3">Wyloguj się</a>
         </div>
+
+        {% else %}
+        <div class="row g-4 justify-content-center">
+            
+            <div class="col-md-5">
+                <div class="dashboard-card h-100">
+                    <h4 class="text-center text-white mb-4">Zaloguj się</h4>
+                    <form action="/login" method="POST">
+                        <div class="mb-3">
+                            <label class="text-dim small mb-1">EMAIL</label>
+                            <input type="email" name="email" class="form-control form-control-dark" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="text-dim small mb-1">HASŁO</label>
+                            <input type="password" name="password" class="form-control form-control-dark" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">WEJDŹ</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="dashboard-card h-100" style="border-color: var(--text-dim);">
+                    <h4 class="text-center text-white mb-4">Załóż Konto</h4>
+                    <form action="/register" method="POST">
+                        <div class="mb-3">
+                            <label class="text-dim small mb-1">EMAIL</label>
+                            <input type="email" name="email" class="form-control form-control-dark" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="text-dim small mb-1">HASŁO</label>
+                            <input type="password" name="password" class="form-control form-control-dark" required>
+                        </div>
+                        <button type="submit" class="btn btn-outline-light w-100">ZAREJESTRUJ SIĘ</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -310,4 +350,93 @@
     }
 </script>
 </body>
+<style>
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none; /* Żeby nie blokowało klikania pod spodem */
+    }
+
+    .custom-alert {
+        pointer-events: auto; /* Dymek można kliknąć */
+        padding: 12px 24px;
+        border-radius: 50px; /* Nowoczesny kształt */
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(8px);
+        
+        /* Stan początkowy */
+        opacity: 0; 
+        transform: translateY(-20px);
+        animation: slideIn 0.4s forwards;
+    }
+
+    .alert-error { background: rgba(239, 68, 68, 0.95); } /* Czerwony */
+    .alert-success { background: rgba(34, 197, 94, 0.95); } /* Zielony */
+
+    /* Animacja wjazdu */
+    @keyframes slideIn {
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Klasa dodawana przez JS do znikania */
+    .hide-toast {
+        opacity: 0 !important;
+        transform: translateY(-20px) !important;
+        transition: all 0.5s ease-in-out;
+    }
+</style>
+
+<div id="notification-area" class="toast-container">
+    {% if error %}
+    <div class="custom-alert alert-error">
+        <span>⚠️</span>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if msg %}
+    <div class="custom-alert alert-success">
+        <span>✅</span>
+        <span>{{ msg }}</span>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Znajdź wszystkie dymki (niezależnie od spacji w HTML)
+        const alerts = document.querySelectorAll('.custom-alert');
+
+        if (alerts.length > 0) {
+            // 2. Czekaj 3.5 sekundy
+            setTimeout(() => {
+                alerts.forEach(alert => {
+                    // 3. Dodaj klasę, która wymusza zanikanie
+                    alert.classList.add('hide-toast');
+                });
+
+                // 4. Usuń całkowicie z HTML po zakończeniu animacji (0.5s później)
+                setTimeout(() => {
+                    const container = document.getElementById('notification-area');
+                    if(container) container.innerHTML = '';
+                }, 500);
+
+            }, 3500);
+        }
+    });
+</script>
 </html>

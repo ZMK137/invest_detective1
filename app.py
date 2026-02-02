@@ -1,9 +1,9 @@
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg')  # Tryb serwerowy
 import matplotlib.pyplot as plt
 import io
 import base64
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -11,12 +11,71 @@ from sklearn.ensemble import RandomForestClassifier
 from scipy.io import arff
 import os
 import datetime
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_caching import Cache
 
 app = Flask(__name__)
-app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE'
+app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE' 
 
 # ======================================================
-# 1. MODEL ML
+# 1. KONFIGURACJA CACHE (PAMIĘĆ PODRĘCZNA)
+# ======================================================
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 900})
+
+# ======================================================
+# 2. KONFIGURACJA BAZY DANYCH (SMART SWITCH)
+# ======================================================
+basedir = os.path.abspath(os.path.dirname(__file__))
+# Lokalnie: users.db, Na serwerze: PostgreSQL
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'users.db'))
+
+# Poprawka dla Rendera (wymagają postgresql:// zamiast postgres://)
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'home'
+
+# ======================================================
+# 3. MODEL UŻYTKOWNIKA
+# ======================================================
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    plan = db.Column(db.String(50), default='free')
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Inicjalizacja bazy (Bezpieczna dla Gunicorna)
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        pass # Jeśli inny worker już stworzył bazę, to ignorujemy błąd
+
+# ======================================================
+# 4. POMOCNICZE: SESJA
+# ======================================================
+def get_session_info():
+    """Zwraca info o limitach (wyłączone dla wygody)"""
+    if 'checks_today' not in session:
+        session['checks_today'] = 0
+    return False, session['checks_today']
+
+# ======================================================
+# 5. MODEL ML (AI)
 # ======================================================
 def train_model():
     arff_file = 'data.arff'
@@ -47,13 +106,14 @@ def train_fake():
 ml_model = train_model()
 
 # ======================================================
-# 2. MODEL DCF
+# 6. MODEL DCF (WYCENA)
 # ======================================================
 def calculate_dcf(stock_obj, cashflow, df_history):
     try:
-        if 'Operating Cash Flow' not in cashflow.index: return None
-        ocf = cashflow.loc['Operating Cash Flow'].iloc[0]
+        if cashflow is None or cashflow.empty: return None
+        ocf = cashflow.loc['Operating Cash Flow'].iloc[0] if 'Operating Cash Flow' in cashflow.index else 0
         capex = cashflow.loc['Capital Expenditure'].iloc[0] if 'Capital Expenditure' in cashflow.index else 0
+        if ocf == 0: return None
         fcf = ocf + capex 
         
         shares = stock_obj.info.get('sharesOutstanding', None)
@@ -61,12 +121,13 @@ def calculate_dcf(stock_obj, cashflow, df_history):
 
         cagr = 0.03
         if len(df_history) >= 2:
-            rev_now = df_history['Przychody'].iloc[0]
-            rev_past = df_history['Przychody'].iloc[-1]
-            years = len(df_history) - 1
-            if years > 0 and rev_past > 0:
-                try: cagr = (rev_now / rev_past) ** (1/years) - 1
-                except: pass
+            try:
+                rev_now = df_history['Przychody'].iloc[0]
+                rev_past = df_history['Przychody'].iloc[-1]
+                years = len(df_history) - 1
+                if years > 0 and rev_past > 0:
+                    cagr = (rev_now / rev_past) ** (1/years) - 1
+            except: pass
 
         growth_rate = max(0.02, min(cagr, 0.15))
         wacc = 0.10
@@ -90,16 +151,13 @@ def calculate_dcf(stock_obj, cashflow, df_history):
             'fcf': fcf,
             'wacc': wacc * 100,
             'growth': round(growth_rate * 100, 2),
-            'cagr_raw': round(cagr * 100, 2),
-            'sum_pv_5y': sum(future_fcfs),
-            'terminal_value_pv': discounted_tv,
             'shares': shares
         }
     except Exception as e:
         return None
 
 # ======================================================
-# 3. WYKRESY (POPRAWIONY BENFORD)
+# 7. WYKRESY
 # ======================================================
 def create_static_charts(df):
     charts = {}
@@ -125,91 +183,85 @@ def create_static_charts(df):
         ax.tick_params(colors=text_color, labelsize=8)
         for spine in ax.spines.values(): spine.set_edgecolor(grid_color)
 
-    # 1. Z-Score
-    fig, ax = plt.subplots(figsize=(7, 3.5))
-    fig.patch.set_facecolor(bg_color)
-    setup_ax(ax, 'ALTMAN Z-SCORE')
-    z = df['Z_Score_Val'].tolist()
-    ax.axhline(1.8, color='#f23645', linestyle='--', linewidth=1, alpha=0.7)
-    ax.axhline(2.99, color='#089981', linestyle='--', linewidth=1, alpha=0.7)
-    ax.plot(years, z, marker='o', color=line_blue, linewidth=1.5, markersize=4)
-    charts['z_score'] = save_fig(fig)
+    try:
+        # Z-Score
+        fig, ax = plt.subplots(figsize=(7, 3.5))
+        fig.patch.set_facecolor(bg_color)
+        setup_ax(ax, 'ALTMAN Z-SCORE')
+        z = df['Z_Score_Val'].tolist()
+        ax.axhline(1.8, color='#f23645', linestyle='--', linewidth=1, alpha=0.7)
+        ax.axhline(2.99, color='#089981', linestyle='--', linewidth=1, alpha=0.7)
+        ax.plot(years, z, marker='o', color=line_blue, linewidth=1.5, markersize=4)
+        charts['z_score'] = save_fig(fig)
 
-    # 2. Rentowność
-    fig, ax = plt.subplots(figsize=(7, 3.5))
-    fig.patch.set_facecolor(bg_color)
-    setup_ax(ax, 'RENTOWNOŚĆ')
-    ax.plot(years, df['ROE'], label='ROE', color=line_blue, linewidth=1.5)
-    ax.plot(years, df['ROA'], label='ROA', color='#d1d4dc', linewidth=1.5, linestyle=':')
-    ax.legend(frameon=False, fontsize=8, labelcolor=text_color)
-    charts['prof'] = save_fig(fig)
+        # Rentowność
+        fig, ax = plt.subplots(figsize=(7, 3.5))
+        fig.patch.set_facecolor(bg_color)
+        setup_ax(ax, 'RENTOWNOŚĆ')
+        ax.plot(years, df['ROE'], label='ROE', color=line_blue, linewidth=1.5)
+        ax.plot(years, df['ROA'], label='ROA', color='#d1d4dc', linewidth=1.5, linestyle=':')
+        ax.legend(frameon=False, fontsize=8, labelcolor=text_color)
+        charts['prof'] = save_fig(fig)
 
-    # 3. Płynność
-    fig, ax = plt.subplots(figsize=(7, 3.5))
-    fig.patch.set_facecolor(bg_color)
-    setup_ax(ax, 'PŁYNNOŚĆ')
-    ax.fill_between(years, df['Current_Ratio'], color=line_blue, alpha=0.1)
-    ax.plot(years, df['Current_Ratio'], color=line_blue, linewidth=1.5)
-    ax.axhline(1.0, color='#f23645', linestyle='--', linewidth=1)
-    charts['liq'] = save_fig(fig)
+        # Płynność
+        fig, ax = plt.subplots(figsize=(7, 3.5))
+        fig.patch.set_facecolor(bg_color)
+        setup_ax(ax, 'PŁYNNOŚĆ')
+        ax.fill_between(years, df['Current_Ratio'], color=line_blue, alpha=0.1)
+        ax.plot(years, df['Current_Ratio'], color=line_blue, linewidth=1.5)
+        ax.axhline(1.0, color='#f23645', linestyle='--', linewidth=1)
+        charts['liq'] = save_fig(fig)
 
-    # 4. BENFORD (POPRAWIONY - LINIA VS SŁUPKI)
-    all_nums = []
-    # Wykluczamy kolumny techniczne i wskaźnikowe, bierzemy tylko "duże" liczby finansowe
-    exclude = ['Rok', 'F_Score', 'Z_Score_Val', 'ml_prob', 'ROE', 'ROA', 'ROS', 'Current_Ratio', 'Quick_Ratio', 'Debt_Ratio']
-    
-    for col in df.select_dtypes(include=[np.number]).columns:
-        if col not in exclude:
-            # Bierzemy tylko liczby większe niż 10 (żeby uniknąć małych wskaźników)
-            vals = df[col].dropna().abs()
-            vals = vals[vals > 10] 
-            all_nums.extend(vals.astype(str).tolist())
-            
-    first_digits = [int(str(n)[0]) for n in all_nums if n and str(n)[0] in '123456789']
-    
-    if first_digits:
-        counts = pd.Series(first_digits).value_counts(normalize=True).sort_index() * 100
-        benford_theory = pd.Series({1:30.1, 2:17.6, 3:12.5, 4:9.7, 5:7.9, 6:6.7, 7:5.8, 8:5.1, 9:4.6})
+        # Benford
+        all_nums = []
+        exclude = ['Rok', 'F_Score', 'Z_Score_Val', 'ml_prob']
+        for col in df.select_dtypes(include=[np.number]).columns:
+            if col not in exclude:
+                vals = df[col].dropna().abs()
+                vals = vals[vals > 10]
+                all_nums.extend(vals.astype(str).tolist())
+        first_digits = [int(str(n)[0]) for n in all_nums if n and str(n)[0] in '123456789']
         
         fig, ax = plt.subplots(figsize=(7, 3.5))
         fig.patch.set_facecolor(bg_color)
-        setup_ax(ax, 'PRAWO BENFORDA (WYKRYWANIE ANOMALII)')
-        
-        # TEORIA JAKO LINIA (Żeby nie zasłaniała)
-        ax.plot(benford_theory.index, benford_theory.values, color='#787b86', linestyle='--', marker='x', label='Teoria', linewidth=1.5, zorder=5)
-        
-        # DANE FIRMY JAKO SŁUPKI
-        ax.bar(counts.index, counts.values, color=line_blue, alpha=0.8, label='Firma', zorder=2)
-        
-        ax.set_xticks(range(1,10))
-        ax.legend(frameon=False, fontsize=8, labelcolor=text_color)
+        if first_digits:
+            setup_ax(ax, 'PRAWO BENFORDA')
+            counts = pd.Series(first_digits).value_counts(normalize=True).sort_index() * 100
+            benford_theory = pd.Series({1:30.1, 2:17.6, 3:12.5, 4:9.7, 5:7.9, 6:6.7, 7:5.8, 8:5.1, 9:4.6})
+            ax.plot(benford_theory.index, benford_theory.values, color='#787b86', linestyle='--', marker='x', label='Teoria')
+            ax.bar(counts.index, counts.values, color=line_blue, alpha=0.8, label='Firma')
+            ax.set_xticks(range(1,10))
+            ax.legend(frameon=False, fontsize=8, labelcolor=text_color)
+        else:
+            setup_ax(ax, 'PRAWO BENFORDA (BRAK DANYCH)')
         charts['benford'] = save_fig(fig)
-    else:
-        # Jeśli za mało danych, pusty wykres
-        fig, ax = plt.subplots(figsize=(7, 3.5))
-        fig.patch.set_facecolor(bg_color); ax.set_facecolor(bg_color)
-        ax.text(0.5, 0.5, "Zbyt mało danych do analizy Benforda", color='white', ha='center')
-        charts['benford'] = save_fig(fig)
+        
+    except Exception as e:
+        print(f"Błąd wykresów: {e}")
+        plt.close('all')
 
     return charts
 
 # ======================================================
-# 4. GŁÓWNA LOGIKA
+# 8. GŁÓWNA ANALIZA (CACHED)
 # ======================================================
+@cache.memoize(timeout=900)
 def analyze(ticker):
     t = ticker.upper().strip()
     search = f"{t}.WA" if len(t)<=4 and not t.endswith('.') else t
+    print(f"🔄 Analyzing {t} (Fresh run)...")
     
     try:
         stock = yf.Ticker(search)
         fin = stock.financials.T; bal = stock.balance_sheet.T; cf = stock.cashflow.T
-        
-        hist = stock.history(period='1d')
-        if hist.empty: return None
-        current_price = hist['Close'].iloc[-1]
-        mcap = stock.info.get('marketCap', 0)
-        
         if fin.empty: return None
+        
+        try:
+            hist = stock.history(period='1d')
+            current_price = hist['Close'].iloc[-1] if not hist.empty else 0
+            mcap = stock.info.get('marketCap', 0)
+        except:
+            current_price = 0; mcap = 0
 
         def g(df, keys):
             for k in keys:
@@ -231,9 +283,12 @@ def analyze(ticker):
         d['Cash_Flow'] = g(cf, ['Operating Cash Flow'])
 
         df = pd.DataFrame(d).sort_index(ascending=True).fillna(0)
+        if df.empty: return None
+        
         df['Rok'] = df.index.astype(int)
         df = df.replace(0, 0.001)
 
+        # Wskaźniki
         df['ROE'] = (df['Zysk_Netto']/df['Kapital_Wlasny'])*100
         df['ROA'] = (df['Zysk_Netto']/df['Aktywa'])*100
         df['ROS'] = (df['Zysk_Netto']/df['Przychody'])*100
@@ -285,33 +340,84 @@ def analyze(ticker):
         }
 
     except Exception as e:
-        print(f"Błąd: {e}")
+        print(f"Error: {e}")
         return None
+
+# ======================================================
+# 9. ROUTING 
+# ======================================================
+@app.route('/register', methods=['POST'])
+def register():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    
+    # Sprawdzamy czy user istnieje
+    user = User.query.filter_by(email=email).first()
+    if user:
+        # Błąd? Zostajemy na stronie, pokazujemy błąd
+        return render_template('index.html', error="Taki email już istnieje!", limit_reached=False, checks_used=0)
+    
+    # Sukces? Tworzymy usera
+    new_user = User(email=email, password=generate_password_hash(password, method='scrypt'))
+    db.session.add(new_user)
+    db.session.commit()
+    
+    login_user(new_user)
+    
+    # WAŻNE: Przekieruj na stronę główną (adres zmieni się na /)
+    return redirect(url_for('home'))
+
+@app.route('/login', methods=['POST'])
+def login():
+    email = request.form.get('email')
+    password = request.form.get('password')
+    
+    user = User.query.filter_by(email=email).first()
+    
+    if user and check_password_hash(user.password, password):
+        login_user(user)
+        # WAŻNE: Sukces = Przekierowanie na czystą główną
+        return redirect(url_for('home'))
+    else:
+        # Błąd = Zostajemy tu i wyświetlamy info
+        return render_template('index.html', error="Błędny email lub hasło", limit_reached=False, checks_used=0)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
     result = None
-    limit_reached = False
+    # Pobieramy info o sesji (Twoja funkcja pomocnicza)
+    limit_reached, checks_used = get_session_info()
     
-    if 'checks_today' not in session:
-        session['checks_today'] = 0
-        session['last_check_date'] = datetime.date.today().isoformat()
-    
-    if session['last_check_date'] != datetime.date.today().isoformat():
-        session['checks_today'] = 0
-        session['last_check_date'] = datetime.date.today().isoformat()
+    # Dodajemy komunikat powitalny jeśli user jest zalogowany
+    msg = None
+    if request.args.get('msg'): # Obsługa komunikatów z redirect
+        msg = request.args.get('msg')
 
     if request.method == 'POST':
-        if session['checks_today'] >= 500:
-            limit_reached = True
-        else:
-            t = request.form.get('ticker')
-            if t: 
-                result = analyze(t)
+        t = request.form.get('ticker')
+        if t: 
+            result = analyze(t)
+            if result:
                 session['checks_today'] += 1
                 session.modified = True
+                limit_reached, checks_used = get_session_info()
 
-    return render_template('index.html', result=result, limit_reached=limit_reached, checks_used=session['checks_today'])
+    return render_template('index.html', result=result, limit_reached=limit_reached, checks_used=checks_used, msg=msg)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    # Tryb Dev (lokalny) vs Gunicorn (produkcja)
+    try:
+        if 'RENDER' not in os.environ:
+            from livereload import Server
+            server = Server(app.wsgi_app)
+            server.serve(port=5001)
+        else:
+            app.run(debug=False, port=5001)
+    except ImportError:
+        app.run(debug=True, port=5001)

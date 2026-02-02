@@ -7,3 +7,6 @@ scipy
 matplotlib
 plotly
 gunicorn
+flask-sqlalchemy
+flask-login
+livereload
