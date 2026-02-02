@@ -346,6 +346,31 @@ def analyze(ticker):
 # ======================================================
 # 9. ROUTING 
 # ======================================================
+
+@app.route('/search_suggestions')
+def search_suggestions():
+    query = request.args.get('q', '').upper()
+    if len(query) < 2:
+        return jsonify(suggestions=[])
+    
+    try:
+        # Przykładowa lista lub szybkie wyszukiwanie przez yfinance
+        import yfinance as yf
+        # Uwaga: yfinance nie ma dedykowanego search, lepiej użyć stałej listy spółek WIG 
+        # lub API zewnętrznego dla pełnej dynamiki. 
+        # Poniżej uproszczona logika dla Twojej listy badawczej:
+        all_tickers = [
+            {'symbol': 'XTB.WA', 'name': 'XTB Spółka Akcyjna'},
+            {'symbol': 'CDR.WA', 'name': 'CD Projekt'},
+            {'symbol': 'PKO.WA', 'name': 'PKO BP'},
+            {'symbol': 'AAPL', 'name': 'Apple Inc.'}
+        ]
+        suggestions = [s for s in all_tickers if query in s['symbol'] or query in s['name'].upper()][:5]
+        return jsonify(suggestions=suggestions)
+    except Exception as e:
+        return jsonify(suggestions=[], error=str(e))
+
+
 @app.route('/register', methods=['POST'])
 def register():
     email = request.form.get('email')
