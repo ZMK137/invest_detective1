@@ -245,94 +245,156 @@ def create_static_charts(df):
 # ======================================================
 # 8. GŁÓWNA ANALIZA (CACHED)
 # ======================================================
+def process_financial_data(data_frames, is_quarterly=False):
+    """
+    Przygotowuje dane finansowe, łącząc je w jeden DataFrame.
+    Args:
+        data_frames (dict): Słownik z DataFrame'ami (fin, bal, cf).
+        is_quarterly (bool): Jeśli True, grupuje dane kwartalnie, inaczej rocznie.
+    """
+    d = {}
+    
+    def get_series(df, keys):
+        for k in keys:
+            if k in df.columns:
+                series = pd.to_numeric(df[k], errors='coerce')
+                # Grupowanie danych rocznie lub kwartalnie
+                if is_quarterly:
+                    # Używamy floor('Q') aby uzyskać początek kwartału
+                    grouper = pd.to_datetime(series.index).to_period('Q')
+                else:
+                    grouper = pd.to_datetime(series.index).year
+                return series.groupby(grouper).first()
+        return None
+
+    fin = data_frames.get('fin', pd.DataFrame())
+    bal = data_frames.get('bal', pd.DataFrame())
+    cf = data_frames.get('cf', pd.DataFrame())
+
+    d['Przychody'] = get_series(fin, ['Total Revenue', 'Operating Revenue'])
+    d['Zysk_Netto'] = get_series(fin, ['Net Income', 'Net Income Common Stockholders'])
+    d['EBIT'] = get_series(fin, ['EBIT', 'Operating Income'])
+    d['Odsetki'] = get_series(fin, ['Interest Expense'])
+    d['Aktywa'] = get_series(bal, ['Total Assets'])
+    d['Aktywa_Obrotowe'] = get_series(bal, ['Current Assets'])
+    d['Zobowiazania'] = get_series(bal, ['Total Liabilities Net Minority Interest', 'Total Liabilities'])
+    d['Zobowiazania_Krotkie'] = get_series(bal, ['Current Liabilities'])
+    d['Kapital_Wlasny'] = get_series(bal, ['Stockholders Equity'])
+    d['Zyski_Zatrzymane'] = get_series(bal, ['Retained Earnings'])
+    d['Zapasy'] = get_series(bal, ['Inventory'])
+    d['Cash_Flow'] = get_series(cf, ['Operating Cash Flow'])
+
+    df = pd.DataFrame(d).sort_index(ascending=True).fillna(0)
+    
+    # Dla danych kwartalnych, konwertujemy PeriodIndex na string
+    if is_quarterly and isinstance(df.index, pd.PeriodIndex):
+        df.index = df.index.strftime('%Y-Q%q')
+        
+    return df
+
+def calculate_indicators(df):
+    """Oblicza wskaźniki finansowe na podstawie danych wejściowych."""
+    if df.empty:
+        return pd.DataFrame(), pd.Series()
+
+    df_calc = df.copy()
+    df_calc = df_calc.replace(0, 0.001) # Unikamy dzielenia przez zero
+
+    # Wskaźniki
+    df_calc['ROE'] = (df_calc['Zysk_Netto'] / df_calc['Kapital_Wlasny']) * 100
+    df_calc['ROA'] = (df_calc['Zysk_Netto'] / df_calc['Aktywa']) * 100
+    df_calc['ROS'] = (df_calc['Zysk_Netto'] / df_calc['Przychody']) * 100
+    df_calc['Current_Ratio'] = df_calc['Aktywa_Obrotowe'] / df_calc['Zobowiazania_Krotkie']
+    df_calc['Quick_Ratio'] = (df_calc['Aktywa_Obrotowe'] - df_calc['Zapasy']) / df_calc['Zobowiazania_Krotkie']
+    df_calc['Debt_Ratio'] = df_calc['Zobowiazania'] / df_calc['Aktywa']
+    
+    # Z-Score (wersja dla firm niefinansowych, produkcyjnych)
+    df_calc['Z_Score_Val'] = 6.56 * ((df_calc['Aktywa_Obrotowe'] - df_calc['Zobowiazania_Krotkie']) / df_calc['Aktywa']) + \
+                             3.26 * (df_calc['Zyski_Zatrzymane'] / df_calc['Aktywa']) + \
+                             6.72 * (df_calc['EBIT'] / df_calc['Aktywa']) + \
+                             1.05 * (df_calc['Kapital_Wlasny'] / df_calc['Zobowiazania'])
+    
+    # F-Score
+    df_calc['ROA_Prev'] = df_calc['ROA'].shift(1).fillna(0)
+    df_calc['CFO_Prev'] = df_calc['Cash_Flow'].shift(1).fillna(0)
+    df_calc['Lev_Prev'] = df_calc['Debt_Ratio'].shift(1).fillna(0)
+    df_calc['Liq_Prev'] = df_calc['Current_Ratio'].shift(1).fillna(0)
+    df_calc['Margin_Prev'] = df_calc['ROS'].shift(1).fillna(0)
+    
+    def calc_f(row):
+        s = 0
+        if row['ROA'] > 0: s += 1
+        if row['Cash_Flow'] > 0: s += 1
+        if row['ROA'] > row['ROA_Prev']: s += 1
+        if row['Cash_Flow'] > row['Zysk_Netto']: s += 1
+        if row['Debt_Ratio'] < row['Lev_Prev']: s += 1
+        if row['Current_Ratio'] > row['Liq_Prev']: s += 1
+        if row['ROS'] > row['Margin_Prev']: s += 1
+        return s
+    df_calc['F_Score'] = df_calc.apply(calc_f, axis=1)
+
+    # Zwracamy pełną historię oraz ostatni wiersz (najnowsze dane)
+    latest = df_calc.iloc[-1] if not df_calc.empty else pd.Series()
+    return df_calc, latest
+
+# ======================================================
+# 8. GŁÓWNA ANALIZA (CACHED)
+# ======================================================
 @cache.memoize(timeout=900)
 def analyze(ticker):
     t = ticker.upper().strip()
-    search = f"{t}.WA" if len(t)<=4 and not t.endswith('.') else t
+    search = f"{t}.WA" if len(t) <= 4 and not t.endswith('.') else t
     print(f"🔄 Analyzing {t} (Fresh run)...")
     
     try:
         stock = yf.Ticker(search)
-        fin = stock.financials.T; bal = stock.balance_sheet.T; cf = stock.cashflow.T
-        if fin.empty: return None
+
+        # Pobieranie danych rocznych i kwartalnych
+        annual_data = {'fin': stock.financials.T, 'bal': stock.balance_sheet.T, 'cf': stock.cashflow.T}
+        quarterly_data = {'fin': stock.quarterly_financials.T, 'bal': stock.quarterly_balance_sheet.T, 'cf': stock.quarterly_cashflow.T}
+
+        if annual_data['fin'].empty:
+            return None
         
+        # Przetwarzanie i obliczenia
+        df_annual_raw = process_financial_data(annual_data, is_quarterly=False)
+        df_quarterly_raw = process_financial_data(quarterly_data, is_quarterly=True)
+
+        df_annual, latest_annual = calculate_indicators(df_annual_raw)
+        df_quarterly, latest_quarterly = calculate_indicators(df_quarterly_raw)
+
+        # Używamy najnowszych danych kwartalnych jako głównych "latest"
+        latest = latest_quarterly if not latest_quarterly.empty else latest_annual
+
+        # Pobieranie ceny i kapitalizacji
         try:
             hist = stock.history(period='1d')
             current_price = hist['Close'].iloc[-1] if not hist.empty else 0
             mcap = stock.info.get('marketCap', 0)
         except:
-            current_price = 0; mcap = 0
+            current_price = 0
+            mcap = 0
 
-        def g(df, keys):
-            for k in keys:
-                if k in df.columns: return pd.to_numeric(df[k], errors='coerce').groupby(pd.to_datetime(df[k].index).year).first()
-            return None
-
-        d = {}
-        d['Przychody'] = g(fin, ['Total Revenue', 'Operating Revenue'])
-        d['Zysk_Netto'] = g(fin, ['Net Income', 'Net Income Common Stockholders'])
-        d['EBIT'] = g(fin, ['EBIT', 'Operating Income'])
-        d['Odsetki'] = g(fin, ['Interest Expense'])
-        d['Aktywa'] = g(bal, ['Total Assets'])
-        d['Aktywa_Obrotowe'] = g(bal, ['Current Assets'])
-        d['Zobowiazania'] = g(bal, ['Total Liabilities Net Minority Interest', 'Total Liabilities'])
-        d['Zobowiazania_Krotkie'] = g(bal, ['Current Liabilities'])
-        d['Kapital_Wlasny'] = g(bal, ['Stockholders Equity'])
-        d['Zyski_Zatrzymane'] = g(bal, ['Retained Earnings'])
-        d['Zapasy'] = g(bal, ['Inventory'])
-        d['Cash_Flow'] = g(cf, ['Operating Cash Flow'])
-
-        df = pd.DataFrame(d).sort_index(ascending=True).fillna(0)
-        if df.empty: return None
+        # Model DCF (używa danych rocznych dla stabilności)
+        dcf_data = calculate_dcf(stock, stock.cashflow, df_annual)
         
-        df['Rok'] = df.index.astype(int)
-        df = df.replace(0, 0.001)
-
-        # Wskaźniki
-        df['ROE'] = (df['Zysk_Netto']/df['Kapital_Wlasny'])*100
-        df['ROA'] = (df['Zysk_Netto']/df['Aktywa'])*100
-        df['ROS'] = (df['Zysk_Netto']/df['Przychody'])*100
-        df['Current_Ratio'] = df['Aktywa_Obrotowe']/df['Zobowiazania_Krotkie']
-        df['Quick_Ratio'] = (df['Aktywa_Obrotowe']-df['Zapasy'])/df['Zobowiazania_Krotkie']
-        df['Debt_Ratio'] = df['Zobowiazania']/df['Aktywa']
-        
-        df['Z_Score_Val'] = 6.56*((df['Aktywa_Obrotowe']-df['Zobowiazania_Krotkie'])/df['Aktywa']) + \
-                            3.26*(df['Zyski_Zatrzymane']/df['Aktywa']) + \
-                            6.72*(df['EBIT']/df['Aktywa']) + \
-                            1.05*(df['Kapital_Wlasny']/df['Zobowiazania'])
-        
-        df['ROA_Prev'] = df['ROA'].shift(1).fillna(0)
-        df['CFO_Prev'] = df['Cash_Flow'].shift(1).fillna(0)
-        df['Lev_Prev'] = df['Debt_Ratio'].shift(1).fillna(0)
-        df['Liq_Prev'] = df['Current_Ratio'].shift(1).fillna(0)
-        df['Margin_Prev'] = df['ROS'].shift(1).fillna(0)
-        def calc_f(row):
-            s=0
-            if row['ROA']>0: s+=1
-            if row['Cash_Flow']>0: s+=1
-            if row['ROA']>row['ROA_Prev']: s+=1
-            if row['Cash_Flow']>row['Zysk_Netto']: s+=1
-            if row['Debt_Ratio']<row['Lev_Prev']: s+=1
-            if row['Current_Ratio']>row['Liq_Prev']: s+=1
-            if row['ROS']>row['Margin_Prev']: s+=1
-            return s
-        df['F_Score'] = df.apply(calc_f, axis=1)
-
-        latest = df.iloc[-1]
-        dcf_data = calculate_dcf(stock, stock.cashflow, df)
-        
+        # Predykcja ML (używa najnowszych dostępnych danych)
         feats = [[latest['Current_Ratio'], latest['Debt_Ratio'], latest['ROA']/100, latest['ROS']/100]]
-        try: ml_prob = ml_model.predict_proba(feats)[0][1] * 100
-        except: ml_prob = 50.0
+        try:
+            ml_prob = ml_model.predict_proba(feats)[0][1] * 100
+        except:
+            ml_prob = 50.0
 
-        charts = create_static_charts(df)
+        # Wykresy (bazują na danych rocznych)
+        charts = create_static_charts(df_annual)
 
         return {
             'ticker': t,
             'current_price': round(current_price, 2),
             'mcap': mcap,
             'latest': latest.to_dict(),
-            'history': df.sort_index(ascending=False).to_dict('records'),
+            'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
+            'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,

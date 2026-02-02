@@ -30,6 +30,7 @@
     <a onclick="showSection('dashboard')" id="link-dashboard" class="active"><i class="bi bi-grid-1x2 me-2"></i> Dashboard</a>
     <a onclick="showSection('dcf')" id="link-dcf"><i class="bi bi-calculator me-2"></i> Raport DCF</a>
     <a onclick="showSection('fundamental')" id="link-fundamental"><i class="bi bi-bar-chart-steps me-2"></i> Fundamenty</a>
+    <a onclick="showSection('indicators')" id="link-indicators"><i class="bi bi-bullseye me-2"></i> Wskaźniki</a>
     <a onclick="showSection('charts')" id="link-charts"><i class="bi bi-graph-up me-2"></i> Wykresy</a>
     <hr class="border-secondary mx-3">
     <a onclick="showSection('subscription')" id="link-subscription" class="text-warning"><i class="bi bi-star-fill me-2"></i> Subskrypcja</a>
@@ -44,10 +45,19 @@
             <div class="d-flex align-items-center">
                 <div class="main-logo">INVEST<span class="logo-blue">DETECTIVE</span></div>
             </div>
-           <form action="/" method="POST" class="d-flex gap-2 flex-grow-1" style="max-width: 400px;">
-                <input type="text" name="ticker" class="form-control form-control-dark" placeholder="TICKER (np. CDR)..." required>
-                <button type="submit" class="btn btn-primary">SZUKAJ</button>
-            </form>
+           <div class="search-container-nav flex-grow-1" style="max-width: 400px; position: relative;">
+                <form action="/" method="POST" id="navSearchForm" class="d-flex gap-2">
+                    <input type="text"
+                           name="ticker"
+                           id="navTickerInput"
+                           class="form-control form-control-dark"
+                           placeholder="TICKER (np. CDR)..."
+                           autocomplete="off"
+                           required>
+                    <button type="submit" class="btn btn-primary">SZUKAJ</button>
+                </form>
+                <div id="navSuggestionsBox" class="suggestions-box"></div>
+            </div>
         </div>
     </div>
 
@@ -212,6 +222,114 @@
             </div>
         </div>
 
+        <div id="view-indicators" class="view-section">
+            <h5 class="text-white mb-4">Wskaźniki Finansowe (Dane Kwartalne vs Roczne)</h5>
+            
+            <ul class="nav nav-tabs" id="indicatorTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="liquidity-tab" data-bs-toggle="tab" data-bs-target="#liquidity-content" type="button" role="tab" aria-controls="liquidity-content" aria-selected="true">Płynność</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="debt-tab" data-bs-toggle="tab" data-bs-target="#debt-content" type="button" role="tab" aria-controls="debt-content" aria-selected="false">Zadłużenie</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="profitability-tab" data-bs-toggle="tab" data-bs-target="#profitability-content" type="button" role="tab" aria-controls="profitability-content" aria-selected="false">Rentowność</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="indicatorTabsContent">
+                <!-- Płynność -->
+                <div class="tab-pane fade show active" id="liquidity-content" role="tabpanel">
+                    <div class="dashboard-card mt-3 p-0">
+                        <table class="table table-dark table-sm mb-0 small">
+                            <thead class="text-secondary">
+                                <tr>
+                                    <th class="ps-3">Wskaźnik</th>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    <th class="bg-secondary text-white text-center">Roczne -></th>
+                                    {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-3 fw-bold">Current Ratio</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Current_Ratio) }}</td>{% endfor %}
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 fw-bold">Quick Ratio</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Quick_Ratio) }}</td>{% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Zadłużenie -->
+                <div class="tab-pane fade" id="debt-content" role="tabpanel">
+                    <div class="dashboard-card mt-3 p-0">
+                        <table class="table table-dark table-sm mb-0 small">
+                            <thead class="text-secondary">
+                                <tr>
+                                    <th class="ps-3">Wskaźnik</th>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    <th class="bg-secondary text-white text-center">Roczne -></th>
+                                    {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-3 fw-bold">Debt Ratio</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.2f"|format(row.Debt_Ratio) }}</td>{% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Rentowność -->
+                <div class="tab-pane fade" id="profitability-content" role="tabpanel">
+                    <div class="dashboard-card mt-3 p-0">
+                        <table class="table table-dark table-sm mb-0 small">
+                            <thead class="text-secondary">
+                                <tr>
+                                    <th class="ps-3">Wskaźnik (%)</th>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<th class="text-center">{{ row.index }}</th>{% endfor %}
+                                    <th class="bg-secondary text-white text-center">Roczne -></th>
+                                    {% for row in result.history_annual|slice(0, 4) %}<th class="text-center">{{ row.Rok }}</th>{% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="ps-3 fw-bold">ROE</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROE) }}%</td>{% endfor %}
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 fw-bold">ROA</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROA) }}%</td>{% endfor %}
+                                </tr>
+                                <tr>
+                                    <td class="ps-3 fw-bold">ROS</td>
+                                    {% for row in result.history_quarterly|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
+                                    <td class="bg-secondary"></td>
+                                    {% for row in result.history_annual|slice(0, 4) %}<td class="text-center font-monospace">{{ "%.1f"|format(row.ROS) }}%</td>{% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="view-charts" class="view-section">
             <h5 class="text-white mb-4">Wykresy Analityczne</h5>
             <div class="row g-4">
@@ -320,6 +438,60 @@
         if(document.getElementById('link-' + sectionId)) { document.getElementById('link-' + sectionId).classList.add('active'); }
         if (window.innerWidth < 768) closeNav();
     }
+</script>
+<script>
+    // This script is for the navigation search bar
+    const navInput = document.getElementById('navTickerInput');
+    const navSuggBox = document.getElementById('navSuggestionsBox');
+    let navDebounceTimer;
+
+    if (navInput) {
+        navInput.addEventListener('input', () => {
+            clearTimeout(navDebounceTimer);
+            const query = navInput.value.trim().toUpperCase();
+            
+            if (query.length < 2) {
+                if(navSuggBox) navSuggBox.style.display = 'none';
+                return;
+            }
+
+            navDebounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/search_suggestions?q=${query}`);
+                    const data = await response.json();
+                    
+                    if (navSuggBox && data.suggestions && data.suggestions.length > 0) {
+                        navSuggBox.innerHTML = data.suggestions.map(s => `
+                            <div class="suggestion-item" onclick="selectNavTicker('${s.symbol}')">
+                                <span class="symbol-highlight">${s.symbol}</span> 
+                                <span class="name-dim ms-2">${s.name}</span>
+                            </div>
+                        `).join('');
+                        navSuggBox.style.display = 'block';
+                    } else {
+                        if(navSuggBox) navSuggBox.style.display = 'none';
+                    }
+                } catch (err) {
+                    console.error("Błąd pobierania sugestii.", err);
+                }
+            }, 300);
+        });
+    }
+
+    function selectNavTicker(sym) {
+        if(navInput) navInput.value = sym;
+        if(navSuggBox) navSuggBox.style.display = 'none';
+        const navForm = document.getElementById('navSearchForm');
+        if(navForm) navForm.submit();
+    }
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        const searchContainer = e.target.closest('.search-container-nav');
+        if (navSuggBox && !searchContainer) {
+            navSuggBox.style.display = 'none';
+        }
+    });
 </script>
 </body>
 <style>
