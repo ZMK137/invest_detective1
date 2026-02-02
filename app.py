@@ -3,7 +3,7 @@ matplotlib.use('Agg')  # Tryb serwerowy
 import matplotlib.pyplot as plt
 import io
 import base64
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -394,12 +394,28 @@ def logout():
 def home():
     if request.method == 'POST':
         ticker = request.form.get('ticker', '').upper()
-        if ticker:
-            # Tutaj wywołujemy Twoją funkcję analityczną
-            return analyze_ticker(ticker) 
+        if not ticker:
+            return render_template('mainpage.html')
+
+        analysis_result = analyze(ticker)
+        
+        limit_reached, checks_used = get_session_info()
+        session['checks_today'] = checks_used + 1
+
+        if analysis_result:
+            return render_template('index.html', 
+                                   result=analysis_result, 
+                                   checks_used=session['checks_today'], 
+                                   limit_reached=limit_reached)
+        else:
+            return render_template('index.html', 
+                                   error=f"Nie znaleziono danych dla tickera '{ticker}'. Sprawdź symbol i spróbuj ponownie.", 
+                                   result=None,
+                                   checks_used=checks_used, 
+                                   limit_reached=limit_reached)
             
-    # Jeśli to zwykłe wejście na stronę (GET)
     return render_template('mainpage.html')
+
 
 # Ścieżka dla sugestii wyszukiwarki
 @app.route('/search_suggestions')
