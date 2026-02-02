@@ -361,7 +361,7 @@ def analyze(ticker):
 
         # Pobieranie danych rocznych i kwartalnych
         annual_data = {'fin': stock.financials.T, 'bal': stock.balance_sheet.T, 'cf': stock.cashflow.T}
-        quarterly_data = {'fin': stock.quarterly_financials.T, 'bal': stock.quarterly_balance_sheet.T, 'cf': stock.quarterly_cashflow.T}
+        #quarterly_data = {'fin': stock.quarterly_financials.T, 'bal': stock.quarterly_balance_sheet.T, 'cf': stock.quarterly_cashflow.T}
 
         # Poluzowanie warunku: jeśli brak danych finansowych, nie przerywamy, aby zwrócić stock.info
         # if annual_data['fin'].empty:
@@ -369,13 +369,13 @@ def analyze(ticker):
         
         # Przetwarzanie i obliczenia
         df_annual_raw = process_financial_data(annual_data, is_quarterly=False)
-        df_quarterly_raw = process_financial_data(quarterly_data, is_quarterly=True)
+        # df_quarterly_raw = process_financial_data(quarterly_data, is_quarterly=True)
 
         df_annual, latest_annual = calculate_indicators(df_annual_raw)
-        df_quarterly, latest_quarterly = calculate_indicators(df_quarterly_raw)
+       #  df_quarterly, latest_quarterly = calculate_indicators(df_quarterly_raw)
 
         # Używamy najnowszych danych kwartalnych jako głównych "latest"
-        latest = latest_quarterly if not latest_quarterly.empty else latest_annual
+        latest = latest_annual
 
         # Zabezpieczenie latest przed brakami danych (dla szablonu)
         latest_dict = latest.to_dict() if not latest.empty else {}
@@ -406,7 +406,7 @@ def analyze(ticker):
 
         # Dodanie kolumn indeksowych (niezbędne dla szablonu i wykresów)
         if not df_annual.empty: df_annual['Rok'] = df_annual.index
-        if not df_quarterly.empty: df_quarterly['index'] = df_quarterly.index
+        # if not df_quarterly.empty: df_quarterly['index'] = df_quarterly.index
 
         # Wykresy (bazują na danych rocznych)
         charts = create_static_charts(df_annual) if not df_annual.empty else {}
@@ -420,7 +420,7 @@ def analyze(ticker):
             'latest': latest_dict,
             'history': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
-            'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
+            # 'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,
