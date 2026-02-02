@@ -367,6 +367,12 @@ def analyze(ticker):
         # Używamy najnowszych danych kwartalnych jako głównych "latest"
         latest = latest_quarterly if not latest_quarterly.empty else latest_annual
 
+        # Zabezpieczenie latest przed brakami danych (dla szablonu)
+        latest_dict = latest.to_dict() if not latest.empty else {}
+        for key in ['ROE', 'ROA', 'ROS', 'Current_Ratio', 'Quick_Ratio', 'Debt_Ratio', 'Z_Score_Val', 'F_Score']:
+            if key not in latest_dict:
+                latest_dict[key] = 0.0
+
         # Pobieranie ceny i kapitalizacji
         try:
             hist = stock.history(period='1d')
@@ -394,18 +400,21 @@ def analyze(ticker):
 
         # Wykresy (bazują na danych rocznych)
         charts = create_static_charts(df_annual) if not df_annual.empty else {}
+        for k in ['z_score', 'prof', 'liq', 'benford']:
+            if k not in charts: charts[k] = ""
 
         return {
             'ticker': t,
             'current_price': round(current_price, 2),
             'mcap': mcap,
-            'latest': latest.to_dict() if not latest.empty else {},
+            'latest': latest_dict,
+            'history': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_quarterly': df_quarterly.sort_index(ascending=False).to_dict('records'),
             'ml_prob': ml_prob,
             'dcf': dcf_data,
             'charts': charts,
-            'f_score': latest.get('F_Score', 0) if not latest.empty else 0,
+            'f_score': latest_dict.get('F_Score', 0),
             'raw_info': stock.info
         }
 
