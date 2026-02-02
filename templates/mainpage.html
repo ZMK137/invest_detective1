@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invest Detective - Terminal Analityczny</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .hero-section {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .search-container {
+            width: 100%;
+            max-width: 700px;
+            position: relative;
+            margin-top: 30px;
+        }
+
+        /* Dodatkowe doprecyzowanie dla strony głównej */
+        .main-title {
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+        }
+
+        .scanline-text {
+            color: var(--text-dim);
+            font-family: 'Roboto Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero-section">
+    <div class="main-logo mb-2" style="font-size: 3rem;">
+        INVEST<span style="color: var(--accent-cyan)">DETECTIVE</span>_
+    </div>
+    
+    <h1 class="main-title">Wykryj Anomalie Rynkowe</h1>
+    <p class="scanline-text mb-5">Forensic Analytics & Machine Learning Engine</p>
+
+    <div class="search-container">
+        <form action="/" method="POST" id="mainSearchForm" class="d-flex gap-0">
+            <input type="text" 
+                   name="ticker" 
+                   id="mainTickerInput" 
+                   class="form-control form-control-dark" 
+                   placeholder="WPISZ TICKER (np. XTB.WA, CDR.WA, AAPL)..." 
+                   autocomplete="off" 
+                   required>
+            <button type="submit" class="btn btn-primary px-5">SZUKAJ</button>
+        </form>
+        
+        <div id="mainSuggestions" class="suggestions-box"></div>
+    </div>
+
+    <div class="mt-5 small text-uppercase" style="color: var(--border-color); letter-spacing: 3px;">
+        WIG20 | mWIG40 | sWIG80 | NASDAQ | NYSE
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('mainTickerInput');
+    const suggBox = document.getElementById('mainSuggestions');
+    let debounceTimer;
+
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const query = input.value.trim().toUpperCase();
+        
+        if (query.length < 2) {
+            suggBox.style.display = 'none';
+            return;
+        }
+
+        // Debouncing: Czekamy 300ms aż użytkownik skończy pisać
+        debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`/search_suggestions?q=${query}`);
+                const data = await response.json();
+                
+                if (data.suggestions && data.suggestions.length > 0) {
+                    suggBox.innerHTML = data.suggestions.map(s => `
+                        <div class="suggestion-item" onclick="selectTicker('${s.symbol}')">
+                            <span class="symbol-highlight">${s.symbol}</span> 
+                            <span class="name-dim ms-2">${s.name}</span>
+                        </div>
+                    `).join('');
+                    suggBox.style.display = 'block';
+                } else {
+                    suggBox.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Błąd pobierania sugestii.");
+            }
+        }, 300);
+    });
+
+    function selectTicker(sym) {
+        input.value = sym;
+        suggBox.style.display = 'none';
+        document.getElementById('mainSearchForm').submit();
+    }
+
+    // Zamknij sugestie po kliknięciu poza wyszukiwarkę
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+            suggBox.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
