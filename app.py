@@ -411,13 +411,4 @@ def home():
     return render_template('index.html', result=result, limit_reached=limit_reached, checks_used=checks_used, msg=msg)
 
 if __name__ == '__main__':
-    # Tryb Dev (lokalny) vs Gunicorn (produkcja)
-    try:
-        if 'RENDER' not in os.environ:
-            from livereload import Server
-            server = Server(app.wsgi_app)
-            server.serve(port=5001)
-        else:
-            app.run(debug=False, port=5001)
-    except ImportError:
-        app.run(debug=True, port=5001)
+    app.run(host='0.0.0.0', port=5000)
