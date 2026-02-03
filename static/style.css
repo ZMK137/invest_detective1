@@ -3,7 +3,7 @@
    ========================================= */
 :root {
     /* Kolory tła */
-    --bg-app:        #050505;  /* Ultra głęboka czerń (tło strony) */
+    --bg-app:        #efefefce;  /* Ultra głęboka czerń (tło strony) */
     --bg-panel:      #1e1e1e;  /* Tło kart i paneli */
     --bg-input:      #0d0d17;  /* Tło pól formularzy */
     
@@ -171,7 +171,7 @@ body::before {
 
 .form-control-dark:focus {
     border-color: var(--accent-blue) !important;
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3) !important;
+    box-shadow: 0 0 15px rgba(0, 51, 255, 0.3) !important;
     outline: none;
 }
 
@@ -196,12 +196,26 @@ body::before {
    ========================================= */
 .main-logo {
     font-family: 'Roboto Mono', monospace;
-    font-weight: 900;
+    font-weight: 700;       /* Nieco lżejsze niż 900 dla elegancji */
     font-size: 1.8rem;
-    letter-spacing: -1px;
-    text-shadow: var(--glitch-shadow);
+    letter-spacing: -0.5px; /* Mniejszy ścisk liter */
+    color: #1a1a1a;         /* Głęboka czerń (nie #000, dla miękkości) */
+    text-decoration: none;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
 }
 
+/* Niebieski akcent (kropka) */
+.main-logo::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    background-color: #000000; /* Minimalistyczny niebieski */
+    margin-left: 6px;
+    border-radius: 0%;        /* Zmień na 0% jeśli wolisz kwadrat */
+}
 .logo-blue { color: var(--accent-blue); }
 
 /* Tabela */

@@ -418,10 +418,10 @@ def analyze(ticker):
 
         return {
             'ticker': t,
-            'current_price': round(current_price, 2),
+            'current_price': round(float(current_price), 2) if current_price else 0,
             'mcap': mcap,
             'latest': latest_dict,
-            'history': df_annual.sort_index(ascending=False).to_dict('records'),
+            'history': df_annual.replace([np.inf, -np.inf], 0).fillna(0).sort_index(ascending=False).to_dict('records'),
             'history_annual': df_annual.sort_index(ascending=False).to_dict('records'),
             'history_quarterly': [], 
             'ml_prob': ml_prob,
