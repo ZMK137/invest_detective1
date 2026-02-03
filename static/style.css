@@ -8,9 +8,9 @@
     --bg-input:      #0d0d17;  /* Tło pól formularzy */
     
     /* Akcenty neonowe */
-    --accent-blue:   #00f2ff;  /* Neonowy błękit (główny) */
+    --accent-blue:   #1603e4;  /* Neonowy błękit (główny) */
     --accent-pink:   #ff007f;  /* Neonowy róż (akcenty/ryzyko) */
-    --accent-green:  #00ff9d;  /* Neonowa zieleń (sukces) */
+    --accent-green:  #0bed79;  /* Neonowa zieleń (sukces) */
     --accent-red:    #ff0055;  /* Neonowa czerwień (zagrożenie) */
     
     /* Tekst i ramki */
@@ -206,7 +206,7 @@ body::before {
     align-items: center;
 }
 
-/* Niebieski akcent (kropka) */
+/* kropka */
 .main-logo::after {
     content: '';
     display: block;
