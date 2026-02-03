@@ -77,7 +77,7 @@ body::before {
 }
 
 .sidebar a:hover, .sidebar a.active {
-    color: var(--accent-blue);
+    color: #0000ff;
     background: rgba(0, 242, 255, 0.05);
     border-right: 3px solid var(--accent-blue);
 }
@@ -86,7 +86,7 @@ body::before {
     font-size: 20px;
     cursor: pointer;
     background: var(--bg-panel);
-    color: var(--accent-blue);
+    color: #0000ff;
     padding: 10px 15px;
     border: 1px solid var(--accent-blue);
     border-radius: 4px;
@@ -110,7 +110,7 @@ body::before {
 }
 
 .dashboard-card:hover {
-    border-color: var(--accent-blue);
+    border-color: #0000ff;
 }
 
 /* Sekcja Forensic / Ryzyko */
@@ -148,14 +148,14 @@ body::before {
 .score-big {
     font-size: 5rem;
     font-weight: 900;
-    color: var(--accent-blue);
+    color: #0000ff;
     text-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
 }
 
 /* Kolory stanów */
 .val-good { color: var(--accent-green) !important; text-shadow: 0 0 10px var(--accent-green); }
 .val-bad  { color: var(--accent-red) !important; text-shadow: 0 0 10px var(--accent-red); }
-.text-blue { color: var(--accent-blue); }
+.text-blue { color: #0000ff; }
 
 /* =========================================
    6. FORMULARZE I PRZYCISKI
@@ -163,14 +163,14 @@ body::before {
 .form-control-dark {
     background: var(--bg-input) !important;
     border: 1px solid var(--border-color) !important;
-    color: var(--accent-blue) !important;
+    color: #0000ff !important;
     border-radius: 4px;
     font-family: 'Roboto Mono', monospace;
     padding: 12px 20px;
 }
 
 .form-control-dark:focus {
-    border-color: var(--accent-blue) !important;
+    border-color: #0000ff !important;
     box-shadow: 0 0 15px rgba(0, 51, 255, 0.3) !important;
     outline: none;
 }
@@ -178,7 +178,7 @@ body::before {
 .btn-primary {
     background: transparent !important;
     border: 1px solid var(--accent-blue) !important;
-    color: var(--accent-blue) !important;
+    color: #0000ff !important;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -216,13 +216,13 @@ body::before {
     margin-left: 6px;
     border-radius: 0%;        /* Zmień na 0% jeśli wolisz kwadrat */
 }
-.logo-blue { color: var(--accent-blue); }
+.logo-blue { color: #0000ff; }
 
 /* Tabela */
 .table { color: var(--text-main); }
 .table thead th {
     background-color: var(--bg-input);
-    color: var(--accent-blue);
+    color: #0000ff;
     border-bottom: 2px solid var(--accent-blue);
     text-transform: uppercase;
     font-size: 0.8rem;
