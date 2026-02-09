@@ -13,6 +13,7 @@
     <style>
         .hero-section {
             height: 100vh;
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,9 +24,16 @@
 
         .search-container {
             width: 100%;
-            max-width: 700px;
+            max-width: 600px;
             position: relative;
-            margin-top: 30px;
+            margin: 30px auto;
+            z-index: 100;
+        }
+
+        /* Formularz rozciągnięty na 100% kontenera */
+         #mainSearchForm {
+            display: flex;
+            width: 100%;
         }
 
         /* Dodatkowe doprecyzowanie dla strony głównej */
@@ -44,6 +52,84 @@
             letter-spacing: 2px;
         }
     </style>
+    <style>
+    /* Kontener listy wyników */
+    #navSuggestionsBox {
+        display: none; /* Domyślnie ukryte */
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #1e222d;
+        border: 1px solid #2a2e39;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+        margin-top: 5px;
+        overflow: hidden;
+        z-index: 9999;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    /* Pojedynczy element listy */
+    .suggestion-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #2a2e39;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .suggestion-item:hover {
+        background-color: #2a2e39;
+    }
+
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Typografia */
+    .ticker-symbol {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+    }
+
+    .ticker-name {
+        font-size: 13px;
+        color: #787b86;
+        margin-top: 2px;
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        max-width: 220px;
+    }
+
+    /* Plakietka giełdy */
+    .exchange-badge {
+        font-size: 10px;
+        font-weight: 600;
+        color: #2962ff;
+        background: rgba(41, 98, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 8px;
+        text-transform: uppercase;
+        border: 1px solid rgba(41, 98, 255, 0.2);
+    }
+    
+    /* Scrollbar */
+    #navSuggestionsBox::-webkit-scrollbar {
+        width: 6px;
+    }
+    #navSuggestionsBox::-webkit-scrollbar-thumb {
+        background: #363a45; 
+        border-radius: 3px;
+    }
+</style>
 </head>
 <body>
 
@@ -55,20 +141,21 @@
     <h1 class="main-title">Wykryj Anomalie Rynkowe</h1>
     <p class="scanline-text mb-5">Forensic Analytics & Machine Learning Engine</p>
 
-    <div class="search-container">
-        <form action="/" method="POST" id="mainSearchForm" class="d-flex gap-0">
-            <input type="text" 
-                   name="ticker" 
-                   id="mainTickerInput" 
-                   class="form-control form-control-dark" 
-                   placeholder="WPISZ TICKER (np. XTB.WA, CDR.WA, AAPL)..." 
-                   autocomplete="off" 
-                   required>
-            <button type="submit" class="btn btn-primary px-5">SZUKAJ</button>
-        </form>
-        
-        <div id="mainSuggestions" class="suggestions-box"></div>
-    </div>
+    <div class="search-container-nav" style="position: relative; max-width: 400px; width: 100%;">
+    
+    <form action="/" method="POST" id="navSearchForm" class="d-flex gap-2">
+        <input type="text"
+               name="ticker"
+               id="navTickerInput"
+               class="form-control form-control-dark"
+               placeholder="TICKER (np. CDR)..."
+               autocomplete="off"
+               required>
+        <button type="submit" class="btn btn-primary">SZUKAJ</button>
+    </form>
+    
+    <div id="navSuggestionsBox" class="suggestions-box"></div>
+</div>
 
     <div class="mt-5 small text-uppercase" style="color: var(--border-color); letter-spacing: 3px;">
         WIG20 | mWIG40 | sWIG80 | NASDAQ | NYSE
@@ -76,52 +163,76 @@
 </div>
 
 <script>
-    const input = document.getElementById('mainTickerInput');
-    const suggBox = document.getElementById('mainSuggestions');
-    let debounceTimer;
+    const navInput = document.getElementById('navTickerInput');
+    const navSuggBox = document.getElementById('navSuggestionsBox');
+    let navDebounceTimer;
 
-    input.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        const query = input.value.trim().toUpperCase();
-        
-        if (query.length < 2) {
-            suggBox.style.display = 'none';
-            return;
-        }
-
-        // Debouncing: Czekamy 300ms aż użytkownik skończy pisać
-        debounceTimer = setTimeout(async () => {
-            try {
-                const response = await fetch(`/search_suggestions?q=${query}`);
-                const data = await response.json();
-                
-                if (data.suggestions && data.suggestions.length > 0) {
-                    suggBox.innerHTML = data.suggestions.map(s => `
-                        <div class="suggestion-item" onclick="selectTicker('${s.symbol}')">
-                            <span class="symbol-highlight">${s.symbol}</span> 
-                            <span class="name-dim ms-2">${s.name}</span>
-                        </div>
-                    `).join('');
-                    suggBox.style.display = 'block';
-                } else {
-                    suggBox.style.display = 'none';
-                }
-            } catch (err) {
-                console.error("Błąd pobierania sugestii.");
+    if (navInput) {
+        navInput.addEventListener('input', () => {
+            clearTimeout(navDebounceTimer);
+            const query = navInput.value.trim();
+            
+            if (query.length < 1) {
+                if(navSuggBox) navSuggBox.style.display = 'none';
+                return;
             }
-        }, 300);
-    });
 
-    function selectTicker(sym) {
-        input.value = sym;
-        suggBox.style.display = 'none';
-        document.getElementById('mainSearchForm').submit();
+            // Debounce 300ms (Ochrona przed spamowaniem API)
+            navDebounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/search_suggestions?q=${query}`);
+                    const data = await response.json();
+                    
+                    if (navSuggBox && data.suggestions && data.suggestions.length > 0) {
+                        navSuggBox.innerHTML = data.suggestions.map(s => {
+                            // Logika: Czyścimy symbol dla Google Favicons (usuwamy .WA)
+                            const cleanSymbol = s.symbol.replace('.WA', '').toLowerCase();
+                            
+                            return `
+                            <div class="suggestion-item" onclick="selectNavTicker('${s.symbol}')">
+                                
+                                <div style="position: relative; width: 36px; height: 36px; margin-right: 15px; flex-shrink: 0;">
+                                    <img src="${s.logo}" 
+                                         onerror="if (this.src.includes('financialmodelingprep')) { this.src='https://www.google.com/s2/favicons?domain=${cleanSymbol}.com&sz=64'; } else { this.src='https://cdn-icons-png.flaticon.com/512/2474/2474450.png'; this.onerror=null; }"
+                                         alt="${s.symbol}" 
+                                         style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%; background: #fff; padding: 2px;">
+                                </div>
+                                
+                                <div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">
+                                    <div style="display: flex; align-items: center;">
+                                        <span class="ticker-symbol">${s.symbol}</span>
+                                        <span class="exchange-badge">${s.exchange || 'STOCK'}</span>
+                                    </div>
+                                    <span class="ticker-name">${s.name}</span>
+                                </div>
+                            </div>
+                        `}).join('');
+                        
+                        navSuggBox.style.display = 'block';
+                    } else {
+                        if(navSuggBox) navSuggBox.style.display = 'none';
+                    }
+                } catch (err) {
+                    console.error("Błąd API:", err);
+                }
+            }, 300);
+        });
     }
 
-    // Zamknij sugestie po kliknięciu poza wyszukiwarkę
+    // Funkcja wyboru z listy
+    function selectNavTicker(sym) {
+        if(navInput) navInput.value = sym;
+        if(navSuggBox) navSuggBox.style.display = 'none';
+        const navForm = document.getElementById('navSearchForm');
+        if(navForm) navForm.submit();
+    }
+
+    // Zamykanie po kliknięciu poza obszar
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('.search-container')) {
-            suggBox.style.display = 'none';
+        // Sprawdzamy czy kliknięto w kontener wyszukiwarki
+        const searchContainer = document.getElementById('navSearchForm')?.parentElement;
+        if (navSuggBox && searchContainer && !searchContainer.contains(e.target)) {
+            navSuggBox.style.display = 'none';
         }
     });
 </script>

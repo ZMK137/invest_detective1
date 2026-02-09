@@ -15,14 +15,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+import traceback
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'TAJNY_KLUCZ_SESJI_INVEST_DETECTIVE' 
 
-import traceback
-
-# Dodaj to do app.py
 @app.errorhandler(500)
 def internal_error(error):
     return f"<pre>KRYTYCZNY BŁĄD SERWERA:\n{traceback.format_exc()}</pre>", 500
@@ -40,11 +38,18 @@ cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT':
 # ======================================================
 # 2. KONFIGURACJA BAZY DANYCH (SMART SWITCH)
 # ======================================================
-basedir = os.path.abspath(os.path.dirname(__file__))
-# Lokalnie: users.db, Na serwerze: PostgreSQL
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'users.db'))
 
-# Poprawka dla Rendera (wymagają postgresql:// zamiast postgres://)
+# Ustal katalog, w którym znajduje się plik app.py
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Lokalnie wymuszamy plik 'users.db' w głównym folderze (nie w instance!)
+# Dzięki temu update_stocks.py i Flask będą widzieć to samo.
+local_db_path = 'sqlite:///' + os.path.join(basedir, 'users.db')
+
+# Pobierz bazę z serwera (Render) lub użyj lokalnej
+db_url = os.environ.get('DATABASE_URL', local_db_path)
+
+# Poprawka dla Rendera (postgres -> postgresql)
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
@@ -56,6 +61,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'home'
 
+# --- MODEL BAZY DANYCH ---
+class Stock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    symbol = db.Column(db.String(20), unique=True, index=True)
+    name = db.Column(db.String(100))
+    logo_url = db.Column(db.String(255))
 # ======================================================
 # 3. MODEL UŻYTKOWNIKA
 # ======================================================
@@ -516,26 +527,86 @@ def home():
         return f"Wystąpił błąd serwera: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
-# Ścieżka dla sugestii wyszukiwarki
 @app.route('/search_suggestions')
 def search_suggestions():
-    query = request.args.get('q', '').upper()
-    if len(query) < 2:
+    query = request.args.get('q', '').strip().upper()
+    
+    if len(query) < 1:
         return jsonify(suggestions=[])
-    
-    # Lista testowa (później możesz ją rozbudować)
-    all_tickers = [
-        {'symbol': 'XTB.WA', 'name': 'XTB Spółka Akcyjna'},
-        {'symbol': 'CDR.WA', 'name': 'CD Projekt'},
-        {'symbol': 'PKO.WA', 'name': 'PKO BP'},
-        {'symbol': 'AAPL', 'name': 'Apple Inc.'},
-        {'symbol': 'TSLA', 'name': 'Tesla Inc.'}
-    ]
-    
-    filtered = [s for s in all_tickers if query in s['symbol'] or query in s['name'].upper()]
-    return jsonify(suggestions=filtered[:5])
 
+    # Pobieramy więcej wyników (30), bo wytniemy z tego 80% (Niemcy, Londyn itd.)
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount=30&newsCount=0"
+    headers = {'User-Agent': 'Mozilla/5.0'}
 
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        data = response.json()
+        
+        valid_results = []
+        
+        # DEFINICJA DOZWOLONYCH GIEŁD (Kody Yahoo Finance)
+        # NMS = NASDAQ National Market System
+        # NYQ = NYSE (New York Stock Exchange)
+        # NGM, NCM = Inne warianty Nasdaq
+        # WSE = Warsaw Stock Exchange (ale dla pewności sprawdzamy końcówkę .WA)
+        ALLOWED_US_EXCHANGES = ['NMS', 'NAS', 'NASDAQ', 'NYQ', 'NYSE', 'NGM', 'NCM', 'PCX']
+
+        if 'quotes' in data:
+            for item in data['quotes']:
+                symbol = item.get('symbol', '')
+                quote_type = item.get('quoteType', '').upper()
+                exch_code = item.get('exchange', '').upper() # Kod techniczny giełdy (np. NMS, GER)
+                
+                # 1. Odsiewamy typy instrumentów (bierzemy tylko Akcje i ETF)
+                if quote_type not in ['EQUITY', 'ETF']:
+                    continue
+
+                # 2. DETEKCJA RYNKU (Whitelist)
+                is_poland = symbol.endswith('.WA') or exch_code in ['WSE', 'WARSAW']
+                is_usa = exch_code in ALLOWED_US_EXCHANGES
+
+                # 3. GLÓWNY FILTR: Jeśli to nie PL i nie USA -> Pomiń
+                if not is_poland and not is_usa:
+                    continue
+
+                # 4. Punktacja (żeby Polska była wyżej niż USA przy tym samym skrócie)
+                score = 0
+                
+                # Jeśli Polska -> Bardzo wysoki priorytet
+                if is_poland:
+                    score += 100
+                    # Jeśli idealny match (np. wpisujesz XTB i to jest XTB.WA)
+                    if symbol.split('.')[0] == query:
+                        score += 500
+                
+                # Jeśli USA -> Średni priorytet
+                elif is_usa:
+                    score += 50
+                    if symbol == query:
+                        score += 200
+
+                # Dodatkowy punkt za dopasowanie początku nazwy
+                if symbol.startswith(query):
+                    score += 10
+
+                # Budowanie wyniku
+                valid_results.append({
+                    'symbol': symbol,
+                    'name': item.get('shortname', item.get('longname', symbol)).title(),
+                    'exchange': 'GPW' if is_poland else item.get('exchDisp', exch_code), # Ładna nazwa
+                    'logo': f"https://financialmodelingprep.com/image-stock/{symbol}.png",
+                    'score': score
+                })
+
+        # Sortowanie po punktach i wycięcie top 6
+        sorted_results = sorted(valid_results, key=lambda x: x['score'], reverse=True)
+        final_suggestions = [{k: v for k, v in res.items() if k != 'score'} for res in sorted_results[:6]]
+
+        return jsonify(suggestions=final_suggestions)
+
+    except Exception as e:
+        print(f"Błąd API Yahoo: {e}")
+        return jsonify(suggestions=[])
 
 if __name__ == '__main__':
     # debug=True pokaże dokładny błąd w przeglądarce zamiast "Internal Server Error"

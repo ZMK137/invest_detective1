@@ -491,8 +491,84 @@
         if (window.innerWidth < 768) closeNav();
     }
 </script>
+<style>
+    /* Kontener listy wyników */
+    #navSuggestionsBox {
+        background-color: #1e222d; /* Ciemne tło jak w terminalach */
+        border: 1px solid #2a2e39;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); /* Głęboki cień */
+        margin-top: 5px;
+        overflow: hidden;
+        z-index: 9999; /* Musi być nad wykresem */
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    /* Pojedynczy element listy */
+    .suggestion-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #2a2e39;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    /* Efekt najechania myszką */
+    .suggestion-item:hover {
+        background-color: #2a2e39; /* Jaśniejszy odcień przy hover */
+    }
+
+    /* Ostatni element bez kreski na dole */
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Styl symbolu (np. XTB.WA) */
+    .ticker-symbol {
+        font-family: 'Roboto', sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        color: #ffffff; /* Biały tekst */
+        letter-spacing: 0.5px;
+    }
+
+    /* Styl nazwy firmy */
+    .ticker-name {
+        font-size: 13px;
+        color: #787b86; /* Szary techniczny */
+        margin-top: 2px;
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        max-width: 220px;
+    }
+
+    /* Plakietka giełdy (np. WSE, NAS) */
+    .exchange-badge {
+        font-size: 10px;
+        font-weight: 600;
+        color: #2962ff; /* Niebieski akcent */
+        background: rgba(41, 98, 255, 0.1); /* Przezroczyste niebieskie tło */
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 8px;
+        text-transform: uppercase;
+        border: 1px solid rgba(41, 98, 255, 0.2);
+    }
+    
+    /* Pasek przewijania (dla estetyki) */
+    #navSuggestionsBox::-webkit-scrollbar {
+        width: 6px;
+    }
+    #navSuggestionsBox::-webkit-scrollbar-thumb {
+        background: #363a45; 
+        border-radius: 3px;
+    }
+</style>
+
 <script>
-    // This script is for the navigation search bar
     const navInput = document.getElementById('navTickerInput');
     const navSuggBox = document.getElementById('navSuggestionsBox');
     let navDebounceTimer;
@@ -500,31 +576,50 @@
     if (navInput) {
         navInput.addEventListener('input', () => {
             clearTimeout(navDebounceTimer);
-            const query = navInput.value.trim().toUpperCase();
+            const query = navInput.value.trim();
             
-            if (query.length < 2) {
+            if (query.length < 1) {
                 if(navSuggBox) navSuggBox.style.display = 'none';
                 return;
             }
 
+            // Debounce 300ms
             navDebounceTimer = setTimeout(async () => {
                 try {
                     const response = await fetch(`/search_suggestions?q=${query}`);
                     const data = await response.json();
                     
                     if (navSuggBox && data.suggestions && data.suggestions.length > 0) {
-                        navSuggBox.innerHTML = data.suggestions.map(s => `
+                        navSuggBox.innerHTML = data.suggestions.map(s => {
+                            // Czyszczenie symbolu dla Google Favicons
+                            const cleanSymbol = s.symbol.replace('.WA', '').toLowerCase();
+                            
+                            return `
                             <div class="suggestion-item" onclick="selectNavTicker('${s.symbol}')">
-                                <span class="symbol-highlight">${s.symbol}</span> 
-                                <span class="name-dim ms-2">${s.name}</span>
+                                
+                                <div style="position: relative; width: 36px; height: 36px; margin-right: 15px; flex-shrink: 0;">
+                                    <img src="${s.logo}" 
+                                         onerror="if (this.src.includes('financialmodelingprep')) { this.src='https://www.google.com/s2/favicons?domain=${cleanSymbol}.com&sz=64'; } else { this.src='https://cdn-icons-png.flaticon.com/512/2474/2474450.png'; this.onerror=null; }"
+                                         alt="${s.symbol}" 
+                                         style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%; background: #fff; padding: 2px;">
+                                </div>
+                                
+                                <div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">
+                                    <div style="display: flex; align-items: center;">
+                                        <span class="ticker-symbol">${s.symbol}</span>
+                                        <span class="exchange-badge">${s.exchange || 'STOCK'}</span>
+                                    </div>
+                                    <span class="ticker-name">${s.name}</span>
+                                </div>
                             </div>
-                        `).join('');
+                        `}).join('');
+                        
                         navSuggBox.style.display = 'block';
                     } else {
                         if(navSuggBox) navSuggBox.style.display = 'none';
                     }
                 } catch (err) {
-                    console.error("Błąd pobierania sugestii.", err);
+                    console.error("Błąd API:", err);
                 }
             }, 300);
         });
@@ -537,10 +632,10 @@
         if(navForm) navForm.submit();
     }
 
-    // Close suggestions when clicking outside
+    // Zamykanie po kliknięciu w tło
     document.addEventListener('click', (e) => {
         const searchContainer = e.target.closest('.search-container-nav');
-        if (navSuggBox && !searchContainer) {
+        if (navSuggBox && !searchContainer && e.target !== navInput) {
             navSuggBox.style.display = 'none';
         }
     });
